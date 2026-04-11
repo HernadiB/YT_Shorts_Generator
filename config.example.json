@@ -1,0 +1,37 @@
+{
+  "project_name": "Finance Shorts Factory",
+  "language": "en",
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "max_seconds": 55
+  },
+  "music": {
+    "library_dir": "assets/music/library",
+    "volume": 0.18,
+    "ducking_threshold": 0.03
+  },
+  "branding": {
+    "channel_name": "Your Channel Name",
+    "cta": "Follow for simple money lessons.",
+    "disclaimer": "Education only. Not financial advice.",
+    "accent_words": ["money", "investing", "ETF", "inflation", "debt", "savings"]
+  },
+  "paths": {
+    "piper_exe": "C:/AI/piper/piper.exe",
+    "voice_model": "C:/AI/piper/voices/en_US-lessac-medium.onnx",
+    "voice_config": "C:/AI/piper/voices/en_US-lessac-medium.onnx.json",
+    "ffmpeg": "ffmpeg",
+    "ffprobe": "ffprobe",
+    "client_secret_json": "client_secret.json"
+  },
+  "upload_defaults": {
+    "privacy_status": "private",
+    "made_for_kids": false,
+    "self_declared_not_made_for_kids": true,
+    "license": "youtube",
+    "embeddable": true,
+    "public_stats_viewable": true
+  }
+}
