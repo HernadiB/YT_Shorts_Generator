@@ -25,7 +25,7 @@ YT_Shorts_Generator/
 |-- requirements.txt                  # Python dependencies
 |-- config.example.json               # Template for local config.json
 |-- .env.example                      # Template for local .env
-|-- topics.txt                        # Optional topic list for manual/batch workflows
+|-- topics.txt                        # Topic pool for random generation
 |-- prompts/
 |   `-- system_prompt.txt             # Script and metadata prompt for the local LLM
 |-- assets/
@@ -202,6 +202,24 @@ Generate one short:
 python run_pipeline.py --topic "What an ETF is in under 60 seconds"
 ```
 
+Generate one short from a random unused topic in `topics.txt`:
+
+```powershell
+python run_pipeline.py
+```
+
+Generate new beginner finance topic titles with Ollama and append them to `topics.txt`:
+
+```powershell
+python run_pipeline.py --generate-topics 20 --topics-only
+```
+
+Generate more topics, then immediately pick one random unused topic and render it:
+
+```powershell
+python run_pipeline.py --generate-topics 20
+```
+
 Generate one short and upload it as private:
 
 ```powershell
@@ -299,6 +317,8 @@ scenes/             # Rendered scene images
 scenes.txt          # FFmpeg concat timing file
 short.mp4           # Final video
 ```
+
+`metadata.json` stores the original selected `topic`. The random topic picker uses that metadata and output folder names to avoid generating the same topic twice.
 
 ## CI
 

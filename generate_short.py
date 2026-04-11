@@ -651,7 +651,9 @@ def main():
 
     meta = ask_ollama(args.topic, model, url)
 
-    slug = safe_slug(meta["title"] or args.topic)
+    meta["topic"] = args.topic
+
+    slug = safe_slug(args.topic)
     wd = OUTPUTS / slug
     wd.mkdir(exist_ok=True)
 
