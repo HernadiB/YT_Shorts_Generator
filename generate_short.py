@@ -396,22 +396,19 @@ def build_visual_timeline(chunks, audio_duration, fps):
 
     frame_duration = 1 / fps
     timeline = []
-    first_start = max(0, chunks[0].start)
-
-    if first_start >= frame_duration:
-        timeline.append(Chunk("", 0, first_start))
 
     for i, chunk in enumerate(chunks):
+        start = 0 if i == 0 else chunk.start
         next_start = chunks[i + 1].start if i + 1 < len(chunks) else audio_duration
-        end = max(next_start, chunk.start + frame_duration)
+        end = max(next_start, start + frame_duration)
 
         if end > audio_duration:
             end = audio_duration
 
-        if end <= chunk.start:
-            end = chunk.start + frame_duration
+        if end <= start:
+            end = start + frame_duration
 
-        timeline.append(Chunk(chunk.text, chunk.start, end))
+        timeline.append(Chunk(chunk.text, start, end))
 
     return timeline
 
