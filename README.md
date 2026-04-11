@@ -118,6 +118,23 @@ Start Ollama in a separate terminal if it is not already running:
 ollama serve
 ```
 
+You can automate the Windows setup with the included script:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\setup_windows.ps1
+```
+
+Useful setup script options:
+
+```powershell
+.\setup_windows.ps1 -ForceConfig
+.\setup_windows.ps1 -SkipToolInstall
+.\setup_windows.ps1 -SkipPiperDownload
+.\setup_windows.ps1 -SkipOllamaPull
+.\setup_windows.ps1 -OllamaModel "llama3.1:8b" -PiperVoice "en_US-lessac-medium"
+```
+
 ## Configure `.env`
 
 Default `.env.example`:
