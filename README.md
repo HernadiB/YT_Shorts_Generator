@@ -194,43 +194,165 @@ Test Piper before generating a full video:
 python test_voice.py
 ```
 
-## Core Commands
+## Video Generation Commands
 
-Generate one short:
+### Generate a video from a specific topic
+
+Command:
 
 ```powershell
 python run_pipeline.py --topic "What an ETF is in under 60 seconds"
 ```
 
-Generate one short from a random unused topic in `topics.txt`:
+What happens:
+
+- Ollama writes the title, description, tags, sections, and script.
+- Piper turns the script into `voice.wav`.
+- WhisperX creates word timings for caption sync.
+- The renderer creates scene images and the final vertical `short.mp4`.
+- Nothing is uploaded to YouTube unless `--upload` is also used.
+
+Output folder:
+
+```text
+outputs/what-an-etf-is-in-under-60-seconds/
+```
+
+### Generate a video from a random unused topic
+
+Command:
 
 ```powershell
 python run_pipeline.py
 ```
 
-Generate new beginner finance topic titles with Ollama and append them to `topics.txt`:
+What happens:
 
-```powershell
-python run_pipeline.py --generate-topics 20 --topics-only
-```
+- The pipeline reads `topics.txt`.
+- It checks `outputs/` and existing `metadata.json` files.
+- It randomly picks a topic that has not been generated before.
+- It generates the video the same way as a manual `--topic` run.
 
-Generate more topics, then immediately pick one random unused topic and render it:
+If every topic in `topics.txt` was already generated, the command exits and asks you to generate more topics.
 
-```powershell
-python run_pipeline.py --generate-topics 20
-```
+### Generate and upload in one command
 
-Generate one short and upload it as private:
+Command:
 
 ```powershell
 python run_pipeline.py --topic "How inflation quietly destroys cash savings" --upload --privacy private
 ```
 
-Upload an already rendered video:
+What happens:
+
+- Generates the video locally first.
+- Uploads the final `short.mp4` to the YouTube account authorized by `client_secret.json` and `token.json`.
+- Uses the generated `metadata.json` title, description, and tags.
+- Upload privacy is controlled by `--privacy`.
+
+Supported privacy values:
+
+```powershell
+--privacy private
+--privacy unlisted
+--privacy public
+```
+
+## Topic Commands
+
+### Generate new topic titles only
+
+Command:
+
+```powershell
+python run_pipeline.py --generate-topics 20 --topics-only
+```
+
+What happens:
+
+- Ollama generates 20 beginner-friendly personal finance topic titles.
+- New, non-duplicate topics are appended to `topics.txt`.
+- No video is rendered.
+- Nothing is uploaded to YouTube.
+
+### Generate topics and immediately render one
+
+Command:
+
+```powershell
+python run_pipeline.py --generate-topics 20
+```
+
+What happens:
+
+- Ollama appends new topics to `topics.txt`.
+- The pipeline randomly selects one unused topic.
+- It generates a video for that selected topic.
+- Nothing is uploaded unless `--upload` is also passed.
+
+### Use a custom topic list
+
+Command:
+
+```powershell
+python run_pipeline.py --topics-file "my_topics.txt"
+```
+
+What happens:
+
+- The random picker reads from `my_topics.txt` instead of `topics.txt`.
+- Output still goes to `outputs/<video-slug>/`.
+
+## Upload Commands
+
+### Upload an existing rendered video
+
+Command:
 
 ```powershell
 python upload_youtube.py --video "outputs/<slug>/short.mp4" --metadata "outputs/<slug>/metadata.json" --privacy private
 ```
+
+What happens:
+
+- Uploads the selected local `short.mp4`.
+- Reads YouTube title, description, and tags from the selected `metadata.json`.
+- Uploads to the YouTube account that completes the OAuth browser login.
+- Creates or reuses local `token.json`.
+
+Upload destination:
+
+```text
+YouTube account authorized by client_secret.json/token.json
+```
+
+The script does not upload anywhere else. It does not publish to GitHub, cloud storage, or another video platform.
+
+## Command Outputs
+
+Every video generation command writes a folder under:
+
+```text
+outputs/<video-slug>/
+```
+
+Typical output:
+
+```text
+outputs/<video-slug>/
+|-- script.txt          # Final script spoken by Piper
+|-- metadata.json       # Topic, title, description, tags, sections, optional music
+|-- voice.wav           # Piper TTS audio
+|-- scenes/             # Rendered caption/background scene images
+|-- scenes.txt          # FFmpeg concat timing file
+`-- short.mp4           # Final vertical video
+```
+
+`short.mp4` is the file to review, publish manually, or upload with `upload_youtube.py`.
+
+`metadata.json` stores the original selected `topic`. The random topic picker uses that metadata and output folder names to avoid generating the same topic twice.
+
+## Quality Commands
 
 Run the static checks used by CI:
 
@@ -298,27 +420,6 @@ python run_pipeline.py --topic "ETF basics" --upload --privacy private
 ```
 
 The first upload opens a browser login flow and creates a local `token.json`. Both `client_secret.json` and `token.json` are local secrets and must not be committed.
-
-## Generated Output
-
-Each generated short is written to:
-
-```text
-outputs/<video-slug>/
-```
-
-Typical files:
-
-```text
-script.txt          # Final script spoken by Piper
-metadata.json       # Title, description, tags, sections, optional music
-voice.wav           # TTS output
-scenes/             # Rendered scene images
-scenes.txt          # FFmpeg concat timing file
-short.mp4           # Final video
-```
-
-`metadata.json` stores the original selected `topic`. The random topic picker uses that metadata and output folder names to avoid generating the same topic twice.
 
 ## CI
 
