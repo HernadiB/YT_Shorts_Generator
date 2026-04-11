@@ -1,0 +1,484 @@
+import argparse
+import json
+import re
+import random
+import subprocess
+import textwrap
+import os
+import ctypes
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import requests
+import whisperx
+from dotenv import load_dotenv
+from PIL import Image, ImageDraw, ImageFont
+
+ROOT = Path(__file__).resolve().parent
+OUTPUTS = ROOT / "outputs"
+PROMPTS = ROOT / "prompts"
+
+
+def resolve_path(p):
+    p = Path(p)
+    if p.is_absolute():
+        return p
+    return ROOT / p
+
+def short_path(path: Path) -> str:
+    path = Path(path).resolve()
+
+    if os.name != "nt":
+        return str(path)
+
+    buffer = ctypes.create_unicode_buffer(4096)
+    result = ctypes.windll.kernel32.GetShortPathNameW(str(path), buffer, len(buffer))
+
+    if result == 0:
+        return str(path)
+
+    return buffer.value
+
+
+def short_output_path(path: Path) -> str:
+    path = Path(path).resolve()
+
+    if os.name != "nt":
+        return str(path)
+
+    parent_short = short_path(path.parent)
+    return str(Path(parent_short) / path.name)
+
+
+@dataclass
+class Chunk:
+    text: str
+    start: float
+    end: float
+
+
+def load_config():
+    load_dotenv(ROOT / ".env")
+    with open(ROOT / "config.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def safe_slug(text: str):
+    return re.sub(r"[^a-zA-Z0-9]+", "-", text.lower()).strip("-")[:80]
+
+
+def clean_json_response(text: str):
+    text = text.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?", "", text).strip()
+        text = re.sub(r"```$", "", text).strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    return text[start:end + 1]
+
+
+def normalize(value: Any):
+    if value is None:
+        return ""
+
+    if isinstance(value, str):
+        return value.strip()
+
+    if isinstance(value, list):
+        return " ".join(str(v).strip() for v in value if str(v).strip())
+
+    if isinstance(value, dict):
+        for k in ["text", "content", "script", "value", "message", "body"]:
+            if k in value:
+                return normalize(value[k])
+        return json.dumps(value, ensure_ascii=False)
+
+    return str(value).strip()
+
+
+def normalize_tags(value: Any):
+    if isinstance(value, list):
+        tags = [normalize(v) for v in value]
+    elif isinstance(value, str):
+        tags = [t.strip() for t in re.split(r",|\|", value) if t.strip()]
+    else:
+        tags = []
+
+    cleaned = []
+    for tag in tags:
+        if tag and tag not in cleaned:
+            cleaned.append(tag)
+
+    if not cleaned:
+        cleaned = ["finance", "investing", "money", "education"]
+
+    return cleaned[:8]
+
+
+def normalize_sections(value: Any):
+    if isinstance(value, list):
+        sections = [normalize(v) for v in value]
+    elif isinstance(value, str):
+        sections = [s.strip() for s in re.split(r",|\|", value) if s.strip()]
+    else:
+        sections = []
+
+    sections = [s for s in sections if s]
+
+    if not sections:
+        sections = ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
+
+    return sections
+
+
+def ask_ollama(topic, model, url):
+    system_prompt = (PROMPTS / "system_prompt.txt").read_text(encoding="utf-8")
+
+    prompt = f"""{system_prompt}
+
+Topic: {topic}
+
+Create a faceless English YouTube Short about this topic for beginners in personal finance.
+
+The script must:
+- feel human
+- sound confident and professional
+- be easy to understand
+- avoid textbook phrasing
+- avoid robotic filler
+- keep attention in the first 2 seconds
+- explain one concept clearly
+- include one very simple example
+- end with a short CTA
+
+Return valid JSON only in this format:
+{{
+  "title": "string",
+  "description": "string",
+  "tags": ["string", "string"],
+  "script": "string",
+  "sections": ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
+}}
+"""
+
+    r = requests.post(
+        url,
+        json={
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json"
+        },
+        timeout=300
+    )
+
+    r.raise_for_status()
+
+    raw = r.json()["response"]
+    cleaned = clean_json_response(raw)
+    parsed = json.loads(cleaned)
+
+    parsed["script"] = normalize(parsed.get("script"))
+    parsed["title"] = normalize(parsed.get("title"))
+    parsed["description"] = normalize(parsed.get("description"))
+    parsed["tags"] = normalize_tags(parsed.get("tags"))
+    parsed["sections"] = normalize_sections(parsed.get("sections"))
+
+    if not parsed["title"]:
+        parsed["title"] = topic
+
+    if not parsed["description"]:
+        parsed["description"] = "Simple personal finance education for beginners.\n\nEducation only. Not financial advice."
+
+    if not parsed["script"]:
+        raise ValueError("No usable script returned by Ollama.")
+
+    return parsed
+
+
+# ---------------------------
+# 🎙 TTS (Piper)
+# ---------------------------
+def run_piper(script_text: str, config: dict, out_wav: Path):
+    piper_exe_path = resolve_path(config["paths"]["piper_exe"])
+    voice_model_path = resolve_path(config["paths"]["voice_model"])
+    voice_config_path = resolve_path(config["paths"]["voice_config"])
+
+    piper_exe = short_path(piper_exe_path)
+    voice_model = short_path(voice_model_path)
+    voice_config = short_path(voice_config_path)
+    out_wav_short = short_output_path(out_wav)
+
+    result = subprocess.run(
+        [
+            piper_exe,
+            "--model",
+            voice_model,
+            "--config",
+            voice_config,
+            "--output_file",
+            out_wav_short
+        ],
+        input=script_text,
+        text=True,
+        capture_output=True,
+        check=False
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Piper crashed.\n"
+            f"Return code: {result.returncode}\n\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}"
+        )
+
+
+# ---------------------------
+# 🧠 WhisperX timing
+# ---------------------------
+def round_to_frame(t, fps):
+    return round(t * fps) / fps
+
+
+def transcribe_words(audio_path: Path):
+    device = "cpu"
+    audio = whisperx.load_audio(str(audio_path))
+
+    model = whisperx.load_model("small", device=device, compute_type="int8")
+    result = model.transcribe(audio)
+
+    align_model, metadata = whisperx.load_align_model(
+        language_code=result["language"],
+        device=device
+    )
+
+    aligned = whisperx.align(
+        result["segments"],
+        align_model,
+        metadata,
+        audio,
+        device
+    )
+
+    words = []
+    for seg in aligned["segments"]:
+        for w in seg.get("words", []):
+            start = w.get("start")
+            end = w.get("end")
+            word = w.get("word", "")
+
+            if start is not None and end is not None and str(word).strip():
+                words.append({
+                    "word": str(word).strip(),
+                    "start": float(start),
+                    "end": float(end)
+                })
+
+    if not words:
+        raise ValueError("WhisperX returned no word timings.")
+
+    return words
+
+
+def build_chunks(words, fps):
+    chunks = []
+    i = 0
+
+    while i < len(words):
+        group = words[i:i + 4]
+
+        text = " ".join(w["word"] for w in group).upper()
+        start = round_to_frame(group[0]["start"], fps)
+        end = round_to_frame(group[-1]["end"], fps)
+
+        if end <= start:
+            end = start + (1 / fps)
+
+        chunks.append(Chunk(text, start, end))
+        i += 4
+
+    return chunks
+
+
+# ---------------------------
+# 🎨 Scene rendering
+# ---------------------------
+def pick_font(size):
+    return ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", size)
+
+
+def make_scene(w, h, text, out):
+    img = Image.new("RGB", (w, h), (20, 25, 40))
+    draw = ImageDraw.Draw(img)
+
+    font = pick_font(110)
+
+    wrapped = "\n".join(textwrap.wrap(text, 12))
+    bbox = draw.multiline_textbbox((0, 0), wrapped, font=font)
+
+    x = (w - (bbox[2] - bbox[0])) // 2
+    y = (h - (bbox[3] - bbox[1])) // 2
+
+    draw.multiline_text((x + 3, y + 3), wrapped, font=font, fill=(0, 0, 0))
+    draw.multiline_text((x, y), wrapped, font=font, fill=(255, 255, 255))
+
+    img.save(out)
+
+
+def build_scenes(chunks, config, wd):
+    scenes = []
+    scene_dir = wd / "scenes"
+    scene_dir.mkdir(exist_ok=True)
+
+    w = config["video"]["width"]
+    h = config["video"]["height"]
+
+    for i, c in enumerate(chunks):
+        path = scene_dir / f"s{i}.png"
+        make_scene(w, h, c.text, path)
+        scenes.append(path)
+
+    return scenes
+
+
+# ---------------------------
+# 🎬 FFmpeg render
+# ---------------------------
+def pick_music_track(config):
+    music_dir = resolve_path(config.get("music", {}).get("library_dir", "assets/music/library"))
+
+    if not music_dir.exists():
+        return None
+
+    tracks = [
+        p for p in music_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
+    ]
+
+    if not tracks:
+        return None
+
+    return random.choice(tracks)
+
+
+def write_concat(scenes, chunks, out):
+    lines = []
+
+    for s, c in zip(scenes, chunks):
+        rel = s.relative_to(out.parent).as_posix()
+        duration = max(0.033, c.end - c.start)
+
+        lines.append(f"file '{rel}'")
+        lines.append(f"duration {duration:.3f}")
+
+    lines.append(f"file '{scenes[-1].relative_to(out.parent).as_posix()}'")
+    out.write_text("\n".join(lines), encoding="utf-8")
+
+
+def ffmpeg_render(config, concat, wav, out, music=None):
+    ffmpeg = config["paths"]["ffmpeg"]
+    music_config = config.get("music", {})
+    music_volume = float(music_config.get("volume", 0.18))
+    ducking_threshold = float(music_config.get("ducking_threshold", 0.03))
+
+    cmd = [
+            ffmpeg,
+            "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", str(concat),
+            "-i", str(wav),
+    ]
+
+    if music:
+        cmd.extend([
+            "-stream_loop", "-1",
+            "-i", str(music),
+            "-filter_complex",
+            f"[2:a]volume={music_volume}[music];"
+            f"[music][1:a]sidechaincompress=threshold={ducking_threshold}:ratio=12:attack=50:release=300[ducked];"
+            "[1:a][ducked]amix=inputs=2:duration=first:dropout_transition=0[aout]",
+            "-map", "0:v:0",
+            "-map", "[aout]",
+            "-c:v", "libx264",
+            "-c:a", "aac",
+            "-shortest",
+            str(out)
+        ])
+    else:
+        cmd.extend([
+            "-c:v", "libx264",
+            "-c:a", "aac",
+            "-shortest",
+            str(out)
+        ])
+
+    subprocess.run(cmd, check=True)
+
+
+# ---------------------------
+# 🚀 MAIN
+# ---------------------------
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--topic", required=True)
+    args = parser.parse_args()
+
+    config = load_config()
+    model = os.getenv("OLLAMA_MODEL")
+    url = os.getenv("OLLAMA_URL")
+
+    OUTPUTS.mkdir(exist_ok=True)
+
+    meta = ask_ollama(args.topic, model, url)
+
+    slug = safe_slug(meta["title"] or args.topic)
+    wd = OUTPUTS / slug
+    wd.mkdir(exist_ok=True)
+
+    script = meta["script"]
+
+    (wd / "script.txt").write_text(script, encoding="utf-8")
+    (wd / "metadata.json").write_text(
+        json.dumps(meta, indent=2, ensure_ascii=False),
+        encoding="utf-8"
+    )
+
+    wav = wd / "voice.wav"
+    run_piper(script, config, wav)
+
+    fps = config["video"]["fps"]
+    words = transcribe_words(wav)
+    chunks = build_chunks(words, fps)
+
+    scenes = build_scenes(chunks, config, wd)
+
+    concat = wd / "scenes.txt"
+    write_concat(scenes, chunks, concat)
+
+    out = wd / "short.mp4"
+    music = pick_music_track(config)
+    if music:
+        meta["music"] = str(music.relative_to(ROOT))
+        (wd / "metadata.json").write_text(
+            json.dumps(meta, indent=2, ensure_ascii=False),
+            encoding="utf-8"
+        )
+        print(f"Selected music: {music}")
+    else:
+        print("No background music found; rendering voice-only video.")
+
+    ffmpeg_render(config, concat, wav, out, music)
+
+    print(json.dumps({
+        "title": meta["title"],
+        "video": str(out),
+        "output_dir": str(wd)
+    }, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()
