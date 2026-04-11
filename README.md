@@ -8,7 +8,6 @@ It uses:
 - Piper for local text-to-speech
 - WhisperX for word-level audio timing
 - Pillow for scene image generation
-- Diffusers for optional AI background image generation
 - FFmpeg and FFprobe for final video rendering
 - YouTube Data API v3 for optional upload
 
@@ -19,7 +18,6 @@ The default output is a vertical 1080x1920 short with semantic caption blocks, s
 ```text
 YT_Shorts_Generator/
 |-- generate_short.py                 # Generate script, voice, scenes, and final video
-|-- generate_backgrounds.py           # Generate topic-specific AI backgrounds with Diffusers
 |-- run_pipeline.py                   # Generate one short and optionally upload it
 |-- upload_youtube.py                 # Upload an existing rendered short to YouTube
 |-- test_voice.py                     # Quick Piper voice test
@@ -98,7 +96,7 @@ Install Python dependencies:
 
 ```powershell
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 Create local config files:
@@ -171,13 +169,7 @@ Important fields:
     }
   },
   "backgrounds": {
-    "image_dir": "assets/backgrounds",
-    "diffusers_model": "stabilityai/sd-turbo",
-    "diffusers_steps": 4,
-    "diffusers_guidance_scale": 0.0,
-    "diffusers_seed": 42,
-    "diffusers_width": 768,
-    "diffusers_height": 1344
+    "image_dir": "assets/backgrounds"
   },
   "paths": {
     "piper_exe": "C:/AI/piper/piper.exe",
@@ -265,41 +257,6 @@ Supported privacy values:
 --privacy unlisted
 --privacy public
 ```
-
-### Generate AI backgrounds before rendering
-
-Command:
-
-```powershell
-python run_pipeline.py --topic "What an ETF is in under 60 seconds" --generate-backgrounds
-```
-
-What happens:
-
-- Diffusers generates topic-specific background images.
-- Images are saved under `assets/backgrounds/<topic-slug>/`.
-- The normal video renderer then uses those images as scene backgrounds.
-- The final video still goes to `outputs/<video-slug>/short.mp4`.
-
-Regenerate existing backgrounds:
-
-```powershell
-python run_pipeline.py --topic "What an ETF is in under 60 seconds" --generate-backgrounds --force-backgrounds
-```
-
-Change the number of generated backgrounds:
-
-```powershell
-python run_pipeline.py --topic "What an ETF is in under 60 seconds" --generate-backgrounds --background-count 8
-```
-
-Generate only the background images:
-
-```powershell
-python generate_backgrounds.py --topic "What an ETF is in under 60 seconds" --count 5
-```
-
-First Diffusers use downloads the configured model. GPU is strongly recommended; CPU can be very slow.
 
 ## Topic Commands
 
@@ -400,7 +357,7 @@ outputs/<video-slug>/
 Run the static checks used by CI:
 
 ```powershell
-pip install ruff bandit
+python -m pip install ruff bandit
 python -m compileall -q generate_short.py run_pipeline.py upload_youtube.py test_voice.py
 ruff check --output-format=github .
 bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv,./outputs,./voices,./assets/music
