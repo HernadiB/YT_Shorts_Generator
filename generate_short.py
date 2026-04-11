@@ -283,12 +283,13 @@ def transcribe_words(audio_path: Path):
     return words
 
 
-def build_chunks(words, fps):
+def build_chunks(words, fps, words_per_chunk=1):
+    words_per_chunk = max(1, int(words_per_chunk))
     chunks = []
     i = 0
 
     while i < len(words):
-        group = words[i:i + 4]
+        group = words[i:i + words_per_chunk]
 
         text = " ".join(w["word"] for w in group).upper()
         start = round_to_frame(group[0]["start"], fps)
@@ -298,7 +299,7 @@ def build_chunks(words, fps):
             end = start + (1 / fps)
 
         chunks.append(Chunk(text, start, end))
-        i += 4
+        i += words_per_chunk
 
     return chunks
 
@@ -306,6 +307,57 @@ def build_chunks(words, fps):
 # ---------------------------
 # 🎨 Scene rendering
 # ---------------------------
+def get_audio_duration(audio_path: Path, config: dict) -> float:
+    ffprobe = config["paths"].get("ffprobe", "ffprobe")
+    result = subprocess.run(
+        [
+            ffprobe,
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(audio_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ffprobe could not read audio duration.\n"
+            f"STDOUT:\n{result.stdout}\n\n"
+            f"STDERR:\n{result.stderr}"
+        )
+
+    return float(result.stdout.strip())
+
+
+def build_visual_timeline(chunks, audio_duration, fps):
+    if not chunks:
+        raise ValueError("Cannot build visual timeline without chunks.")
+
+    frame_duration = 1 / fps
+    timeline = []
+    first_start = max(0, chunks[0].start)
+
+    if first_start >= frame_duration:
+        timeline.append(Chunk("", 0, first_start))
+
+    for i, chunk in enumerate(chunks):
+        next_start = chunks[i + 1].start if i + 1 < len(chunks) else audio_duration
+        end = max(next_start, chunk.start + frame_duration)
+
+        if end > audio_duration:
+            end = audio_duration
+
+        if end <= chunk.start:
+            end = chunk.start + frame_duration
+
+        timeline.append(Chunk(chunk.text, chunk.start, end))
+
+    return timeline
+
+
 def pick_font(size):
     return ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", size)
 
@@ -313,6 +365,10 @@ def pick_font(size):
 def make_scene(w, h, text, out):
     img = Image.new("RGB", (w, h), (20, 25, 40))
     draw = ImageDraw.Draw(img)
+
+    if not text.strip():
+        img.save(out)
+        return
 
     font = pick_font(110)
 
@@ -451,13 +507,16 @@ def main():
     run_piper(script, config, wav)
 
     fps = config["video"]["fps"]
+    audio_duration = get_audio_duration(wav, config)
     words = transcribe_words(wav)
-    chunks = build_chunks(words, fps)
+    words_per_chunk = config["video"].get("caption_words_per_scene", 1)
+    chunks = build_chunks(words, fps, words_per_chunk)
+    timeline = build_visual_timeline(chunks, audio_duration, fps)
 
-    scenes = build_scenes(chunks, config, wd)
+    scenes = build_scenes(timeline, config, wd)
 
     concat = wd / "scenes.txt"
-    write_concat(scenes, chunks, concat)
+    write_concat(scenes, timeline, concat)
 
     out = wd / "short.mp4"
     music = pick_music_track(config)

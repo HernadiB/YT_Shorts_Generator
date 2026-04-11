@@ -5,7 +5,8 @@
     "width": 1080,
     "height": 1920,
     "fps": 30,
-    "max_seconds": 55
+    "max_seconds": 55,
+    "caption_words_per_scene": 1
   },
   "music": {
     "library_dir": "assets/music/library",
