@@ -174,6 +174,15 @@ Current design system includes:
 - safe margins for Shorts UI
 - dark readability panel
 - finance-themed gradient backgrounds
+- semantic caption blocks synced to the spoken audio
+- topic-specific background image sequences from `assets/backgrounds/<topic-slug>/`
+
+If no matching background images are found, the renderer falls back to generated finance-themed chart backgrounds. To override that, add `.jpg`, `.png`, or `.webp` files under:
+
+```text
+assets/backgrounds/default/
+assets/backgrounds/<topic-slug>/
+```
 
 ---
 
@@ -292,4 +301,3 @@ Planned / optional improvements:
 ## ✅ Status
 
 You now have a **fully local AI YouTube Shorts factory** for finance content.
-

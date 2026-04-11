@@ -304,6 +304,64 @@ def build_chunks(words, fps, words_per_chunk=1):
     return chunks
 
 
+def build_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4):
+    min_words = max(1, int(min_words))
+    max_words = max(min_words, int(max_words))
+    max_seconds = max(1.0, float(max_seconds))
+
+    chunks = []
+    group = []
+
+    for word in words:
+        group.append(word)
+        text = " ".join(w["word"] for w in group)
+        duration = group[-1]["end"] - group[0]["start"]
+        ends_phrase = re.search(r"[.!?,;:]$", str(word["word"])) is not None
+        is_long_enough = len(group) >= min_words
+        is_full = len(group) >= max_words or duration >= max_seconds
+
+        if (is_long_enough and ends_phrase) or is_full:
+            start = round_to_frame(group[0]["start"], fps)
+            end = round_to_frame(group[-1]["end"], fps)
+
+            if end <= start:
+                end = start + (1 / fps)
+
+            chunks.append(Chunk(text.upper(), start, end))
+            group = []
+
+    if group:
+        start = round_to_frame(group[0]["start"], fps)
+        end = round_to_frame(group[-1]["end"], fps)
+
+        if end <= start:
+            end = start + (1 / fps)
+
+        chunks.append(Chunk(" ".join(w["word"] for w in group).upper(), start, end))
+
+    return chunks
+
+
+def build_caption_chunks(words, fps, config):
+    caption_config = config["video"].get("captions", {})
+    mode = caption_config.get("mode", "semantic")
+
+    if mode == "fixed":
+        words_per_chunk = caption_config.get(
+            "words_per_chunk",
+            config["video"].get("caption_words_per_scene", 4),
+        )
+        return build_chunks(words, fps, words_per_chunk)
+
+    return build_semantic_chunks(
+        words,
+        fps,
+        min_words=caption_config.get("min_words", 3),
+        max_words=caption_config.get("max_words", 8),
+        max_seconds=caption_config.get("max_seconds", 3.4),
+    )
+
+
 # ---------------------------
 # 🎨 Scene rendering
 # ---------------------------
@@ -362,8 +420,108 @@ def pick_font(size):
     return ImageFont.truetype("C:/Windows/Fonts/arialbd.ttf", size)
 
 
-def make_scene(w, h, text, out):
-    img = Image.new("RGB", (w, h), (20, 25, 40))
+def list_background_images(config, slug):
+    background_config = config.get("backgrounds", {})
+    base_dir = resolve_path(background_config.get("image_dir", "assets/backgrounds"))
+    extensions = {".jpg", ".jpeg", ".png", ".webp"}
+
+    candidate_dirs = [
+        base_dir / slug,
+        base_dir / "default",
+        base_dir,
+    ]
+
+    seen = set()
+    images = []
+    for candidate_dir in candidate_dirs:
+        if not candidate_dir.exists():
+            continue
+
+        for path in sorted(candidate_dir.iterdir()):
+            if path.is_file() and path.suffix.lower() in extensions and path not in seen:
+                images.append(path)
+                seen.add(path)
+
+        if images:
+            break
+
+    return images
+
+
+def cover_image(image, w, h):
+    image = image.convert("RGB")
+    scale = max(w / image.width, h / image.height)
+    resized = image.resize(
+        (int(image.width * scale) + 1, int(image.height * scale) + 1),
+        Image.Resampling.LANCZOS,
+    )
+    x = (resized.width - w) // 2
+    y = (resized.height - h) // 2
+    return resized.crop((x, y, x + w, y + h))
+
+
+def make_procedural_finance_background(w, h, variant=0):
+    rng = random.Random(variant)
+    palettes = [
+        ((12, 20, 24), (28, 97, 85), (232, 218, 148), (238, 244, 241)),
+        ((17, 18, 26), (67, 112, 163), (238, 183, 74), (239, 242, 246)),
+        ((15, 25, 22), (93, 139, 94), (231, 199, 94), (244, 246, 238)),
+    ]
+    bg, accent, gold, line = palettes[variant % len(palettes)]
+    img = Image.new("RGB", (w, h), bg)
+    draw = ImageDraw.Draw(img, "RGBA")
+
+    for x in range(0, w, 90):
+        draw.line((x, 0, x, h), fill=(*line, 22), width=1)
+    for y in range(0, h, 90):
+        draw.line((0, y, w, y), fill=(*line, 18), width=1)
+
+    chart_area_top = int(h * 0.18)
+    chart_area_bottom = int(h * 0.72)
+    points = []
+    for i in range(9):
+        x = int(w * 0.08 + i * (w * 0.84 / 8))
+        trend = chart_area_bottom - int(i * (h * 0.035))
+        y = trend + rng.randint(-90, 90)
+        points.append((x, max(chart_area_top, min(chart_area_bottom, y))))
+
+    draw.line(points, fill=(*gold, 185), width=14, joint="curve")
+    draw.line(points, fill=(*line, 210), width=5, joint="curve")
+    for point in points:
+        r = 16
+        draw.ellipse((point[0] - r, point[1] - r, point[0] + r, point[1] + r), fill=(*gold, 210))
+
+    bar_base = int(h * 0.82)
+    for i in range(7):
+        x0 = int(w * 0.08 + i * w * 0.13)
+        bar_h = rng.randint(int(h * 0.08), int(h * 0.24))
+        draw.rounded_rectangle(
+            (x0, bar_base - bar_h, x0 + int(w * 0.07), bar_base),
+            radius=8,
+            fill=(*accent, 155),
+        )
+
+    for _ in range(5):
+        cx = rng.randint(int(w * 0.08), int(w * 0.92))
+        cy = rng.randint(int(h * 0.08), int(h * 0.88))
+        r = rng.randint(34, 62)
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(*gold, 95), width=5)
+
+    return img
+
+
+def make_background(w, h, background_path=None, variant=0):
+    if background_path:
+        img = cover_image(Image.open(background_path), w, h)
+    else:
+        img = make_procedural_finance_background(w, h, variant)
+
+    overlay = Image.new("RGB", (w, h), (0, 0, 0))
+    return Image.blend(img, overlay, 0.46)
+
+
+def make_scene(w, h, text, out, background_path=None, variant=0):
+    img = make_background(w, h, background_path, variant)
     draw = ImageDraw.Draw(img)
 
     if not text.strip():
@@ -384,17 +542,19 @@ def make_scene(w, h, text, out):
     img.save(out)
 
 
-def build_scenes(chunks, config, wd):
+def build_scenes(chunks, config, wd, slug):
     scenes = []
     scene_dir = wd / "scenes"
     scene_dir.mkdir(exist_ok=True)
 
     w = config["video"]["width"]
     h = config["video"]["height"]
+    backgrounds = list_background_images(config, slug)
 
     for i, c in enumerate(chunks):
         path = scene_dir / f"s{i}.png"
-        make_scene(w, h, c.text, path)
+        background_path = backgrounds[i % len(backgrounds)] if backgrounds else None
+        make_scene(w, h, c.text, path, background_path, i)
         scenes.append(path)
 
     return scenes
@@ -509,11 +669,10 @@ def main():
     fps = config["video"]["fps"]
     audio_duration = get_audio_duration(wav, config)
     words = transcribe_words(wav)
-    words_per_chunk = config["video"].get("caption_words_per_scene", 1)
-    chunks = build_chunks(words, fps, words_per_chunk)
+    chunks = build_caption_chunks(words, fps, config)
     timeline = build_visual_timeline(chunks, audio_duration, fps)
 
-    scenes = build_scenes(timeline, config, wd)
+    scenes = build_scenes(timeline, config, wd, slug)
 
     concat = wd / "scenes.txt"
     write_concat(scenes, timeline, concat)

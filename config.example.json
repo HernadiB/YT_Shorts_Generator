@@ -6,7 +6,15 @@
     "height": 1920,
     "fps": 30,
     "max_seconds": 55,
-    "caption_words_per_scene": 1
+    "captions": {
+      "mode": "semantic",
+      "min_words": 3,
+      "max_words": 8,
+      "max_seconds": 3.4
+    }
+  },
+  "backgrounds": {
+    "image_dir": "assets/backgrounds"
   },
   "music": {
     "library_dir": "assets/music/library",
