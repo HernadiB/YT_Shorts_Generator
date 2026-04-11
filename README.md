@@ -162,7 +162,7 @@ Important fields:
     "fps": 30,
     "max_seconds": 55,
     "captions": {
-      "mode": "semantic",
+      "mode": "progressive",
       "min_words": 3,
       "max_words": 8,
       "max_seconds": 3.4
@@ -382,18 +382,29 @@ If no matching background images exist, the renderer generates finance-themed ch
 
 ## Captions and Sync
 
-Captions are built from WhisperX word timings. The default mode is semantic captioning:
+Captions are built from WhisperX word timings. The default mode is progressive semantic captioning:
 
 ```json
 "captions": {
-  "mode": "semantic",
+  "mode": "progressive",
   "min_words": 3,
   "max_words": 8,
   "max_seconds": 3.4
 }
 ```
 
-This keeps captions synced to the voice while avoiding word-by-word flashing. For fixed-size caption blocks, use:
+This keeps captions synced to the voice across the full video: each semantic phrase builds up as the words are spoken, so the viewer does not see words before the narration reaches them. For full phrase-at-once captions, use:
+
+```json
+"captions": {
+  "mode": "phrase",
+  "min_words": 3,
+  "max_words": 8,
+  "max_seconds": 3.4
+}
+```
+
+For fixed-size caption blocks, use:
 
 ```json
 "captions": {

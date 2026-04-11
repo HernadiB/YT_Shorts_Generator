@@ -7,7 +7,7 @@
     "fps": 30,
     "max_seconds": 55,
     "captions": {
-      "mode": "semantic",
+      "mode": "progressive",
       "min_words": 3,
       "max_words": 8,
       "max_seconds": 3.4

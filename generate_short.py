@@ -304,47 +304,82 @@ def build_chunks(words, fps, words_per_chunk=1):
     return chunks
 
 
-def build_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4):
+def group_semantic_words(words, min_words=3, max_words=8, max_seconds=3.4):
     min_words = max(1, int(min_words))
     max_words = max(min_words, int(max_words))
     max_seconds = max(1.0, float(max_seconds))
 
-    chunks = []
+    groups = []
     group = []
 
     for word in words:
         group.append(word)
-        text = " ".join(w["word"] for w in group)
         duration = group[-1]["end"] - group[0]["start"]
         ends_phrase = re.search(r"[.!?,;:]$", str(word["word"])) is not None
         is_long_enough = len(group) >= min_words
         is_full = len(group) >= max_words or duration >= max_seconds
 
         if (is_long_enough and ends_phrase) or is_full:
-            start = round_to_frame(group[0]["start"], fps)
-            end = round_to_frame(group[-1]["end"], fps)
+            groups.append(group)
+            group = []
+
+    if group:
+        groups.append(group)
+
+    return groups
+
+
+def chunk_from_word_group(group, fps):
+    start = round_to_frame(group[0]["start"], fps)
+    end = round_to_frame(group[-1]["end"], fps)
+
+    if end <= start:
+        end = start + (1 / fps)
+
+    text = " ".join(w["word"] for w in group)
+    return Chunk(text.upper(), start, end)
+
+
+def build_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4):
+    chunks = []
+
+    for group in group_semantic_words(words, min_words, max_words, max_seconds):
+        chunks.append(chunk_from_word_group(group, fps))
+
+    return chunks
+
+
+def build_progressive_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4):
+    chunks = []
+
+    for group in group_semantic_words(words, min_words, max_words, max_seconds):
+        for i in range(len(group)):
+            visible_words = group[:i + 1]
+            text = " ".join(w["word"] for w in visible_words)
+            word = group[i]
+            start = round_to_frame(word["start"], fps)
+            end = round_to_frame(word["end"], fps)
 
             if end <= start:
                 end = start + (1 / fps)
 
             chunks.append(Chunk(text.upper(), start, end))
-            group = []
-
-    if group:
-        start = round_to_frame(group[0]["start"], fps)
-        end = round_to_frame(group[-1]["end"], fps)
-
-        if end <= start:
-            end = start + (1 / fps)
-
-        chunks.append(Chunk(" ".join(w["word"] for w in group).upper(), start, end))
 
     return chunks
 
 
+def write_caption_timing(words, chunks, timeline, out):
+    payload = {
+        "words": words,
+        "caption_chunks": [chunk.__dict__ for chunk in chunks],
+        "visual_timeline": [chunk.__dict__ for chunk in timeline],
+    }
+    out.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
 def build_caption_chunks(words, fps, config):
     caption_config = config["video"].get("captions", {})
-    mode = caption_config.get("mode", "semantic")
+    mode = caption_config.get("mode", "progressive")
 
     if mode == "fixed":
         words_per_chunk = caption_config.get(
@@ -353,7 +388,16 @@ def build_caption_chunks(words, fps, config):
         )
         return build_chunks(words, fps, words_per_chunk)
 
-    return build_semantic_chunks(
+    if mode == "phrase":
+        return build_semantic_chunks(
+            words,
+            fps,
+            min_words=caption_config.get("min_words", 3),
+            max_words=caption_config.get("max_words", 8),
+            max_seconds=caption_config.get("max_seconds", 3.4),
+        )
+
+    return build_progressive_semantic_chunks(
         words,
         fps,
         min_words=caption_config.get("min_words", 3),
@@ -670,6 +714,7 @@ def main():
     words = transcribe_words(wav)
     chunks = build_caption_chunks(words, fps, config)
     timeline = build_visual_timeline(chunks, audio_duration, fps)
+    write_caption_timing(words, chunks, timeline, wd / "caption_timing.json")
 
     scenes = build_scenes(timeline, config, wd, slug)
 
