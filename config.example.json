@@ -14,7 +14,13 @@
     }
   },
   "backgrounds": {
-    "image_dir": "assets/backgrounds"
+    "image_dir": "assets/backgrounds",
+    "diffusers_model": "stabilityai/sd-turbo",
+    "diffusers_steps": 4,
+    "diffusers_guidance_scale": 0.0,
+    "diffusers_seed": 42,
+    "diffusers_width": 768,
+    "diffusers_height": 1344
   },
   "music": {
     "library_dir": "assets/music/library",

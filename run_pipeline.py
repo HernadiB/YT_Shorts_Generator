@@ -178,6 +178,9 @@ if __name__ == "__main__":
     parser.add_argument("--topics-file", default=str(DEFAULT_TOPICS_FILE))
     parser.add_argument("--generate-topics", type=int, default=0)
     parser.add_argument("--topics-only", action="store_true")
+    parser.add_argument("--generate-backgrounds", action="store_true")
+    parser.add_argument("--background-count", type=int, default=5)
+    parser.add_argument("--force-backgrounds", action="store_true")
     parser.add_argument("--upload", action="store_true")
     parser.add_argument("--privacy", default="private", choices=["private", "public", "unlisted"])
     args = parser.parse_args()
@@ -199,6 +202,19 @@ if __name__ == "__main__":
         topic = select_random_unused_topic(topics)
 
     py = sys.executable
+
+    if args.generate_backgrounds:
+        background_cmd = [
+            py,
+            str(ROOT / "generate_backgrounds.py"),
+            "--topic",
+            topic,
+            "--count",
+            str(args.background_count),
+        ]
+        if args.force_backgrounds:
+            background_cmd.append("--force")
+        run_cmd(background_cmd)
 
     run_cmd([py, str(ROOT / "generate_short.py"), "--topic", topic])
     out_dir = latest_output_dir()
