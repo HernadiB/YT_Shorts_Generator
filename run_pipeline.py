@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 OUTPUTS = ROOT / "outputs"
 DEFAULT_TOPICS_FILE = ROOT / "topics.txt"
+DEFAULT_AUTO_GENERATE_TOPICS = 20
 
 
 def safe_slug(text: str):
@@ -50,7 +51,19 @@ def read_topics(path: Path):
 
 def append_topics(path: Path, topics):
     existing = read_topics(path)
-    additions = [topic for topic in topics if topic and topic not in existing]
+    existing_keys = {safe_slug(topic) for topic in existing}
+    additions = []
+
+    for topic in topics:
+        if not topic:
+            continue
+
+        topic_key = safe_slug(topic)
+        if topic_key in existing_keys:
+            continue
+
+        additions.append(topic)
+        existing_keys.add(topic_key)
 
     if not additions:
         return []
@@ -91,11 +104,44 @@ def generated_topic_keys():
 
 
 def select_random_unused_topic(topics):
-    generated = generated_topic_keys()
-    unused = [topic for topic in topics if safe_slug(topic) not in generated]
+    unused = unused_topics(topics)
 
     if not unused:
         raise SystemExit("No unused topics left in topics.txt. Generate more with --generate-topics 20.")
+
+    topic = random.choice(unused)
+    print(f"Selected topic: {topic}")
+    return topic
+
+
+def unused_topics(topics):
+    generated = generated_topic_keys()
+    return [topic for topic in topics if safe_slug(topic) not in generated]
+
+
+def ensure_unused_topic(topics_file: Path, auto_generate_count: int):
+    auto_generate_count = max(0, int(auto_generate_count))
+    topics = read_topics(topics_file)
+    if not topics and auto_generate_count > 0:
+        print(f"No topics found in {topics_file}. Generating {auto_generate_count} topics.")
+        generate_topic_titles(auto_generate_count, topics_file)
+        topics = read_topics(topics_file)
+
+    unused = unused_topics(topics)
+    if not unused and auto_generate_count > 0:
+        print(
+            f"No unused topics left in {topics_file}. "
+            f"Generating {auto_generate_count} fresh topics."
+        )
+        generate_topic_titles(auto_generate_count, topics_file)
+        topics = read_topics(topics_file)
+        unused = unused_topics(topics)
+
+    if not unused:
+        raise SystemExit(
+            f"No unused topics found in {topics_file}. "
+            "Generate fresh topics with --generate-topics 20."
+        )
 
     topic = random.choice(unused)
     print(f"Selected topic: {topic}")
@@ -124,13 +170,33 @@ def generate_topic_titles(count, topics_file: Path):
     existing = read_topics(topics_file)
     prompt = f"""Create {count} original YouTube Shorts topic titles about beginner personal finance.
 
-Audience: beginners who want practical financial education.
+Audience: normal adults who want practical financial education that feels
+slightly more professional than generic beginner content.
+
+Channel position:
+- Professional finance explained like a smart friend would explain it.
+- Not a guru, not a bank, not a motivational channel.
+- Series feel: Money Mechanics in 45 Seconds, The Hidden Cost, Finance Terms
+  That Actually Matter, One Chart, One Lesson, What This Really Means For Your
+  Wallet, Beginner Finance But Not Dumbed Down.
 
 Rules:
 - Write clean English titles only.
-- Make every title specific and educational.
+- Make every title a concrete, slightly contrarian financial statement.
+- The first second must work as a hook, so avoid generic questions.
+- Explain one financial mechanism per title, not a list of tips.
+- Prefer titles that imply a hidden cost, misunderstood mechanism, or surprising
+  wallet-level consequence.
 - Avoid hype, clickbait, spam, investing guarantees, and duplicate ideas.
-- Prefer topics about saving, budgeting, debt, emergency funds, ETFs, index funds, inflation, credit scores, fees, risk, taxes, and long-term investing basics.
+- Prefer topics about inflation, debt, fees, credit scores, ETFs, emergency
+  funds, car payments, subscriptions, tax drag, liquidity, risk, compounding,
+  index funds, cash flow, and long-term investing basics.
+- If an existing topic already covers the same broad area, use a meaningfully
+  different angle or mechanism. Near-duplicates are not useful.
+- Match this style without repeating these examples:
+  - Your savings account is not safe from inflation
+  - The problem with debt is not the payment, it is the interest curve
+  - An ETF is not boring, it is risk control in disguise
 - Do not repeat any of these existing topics:
 {json.dumps(existing, ensure_ascii=False)}
 
@@ -177,6 +243,7 @@ if __name__ == "__main__":
     parser.add_argument("--topic")
     parser.add_argument("--topics-file", default=str(DEFAULT_TOPICS_FILE))
     parser.add_argument("--generate-topics", type=int, default=0)
+    parser.add_argument("--auto-generate-topics", type=int, default=DEFAULT_AUTO_GENERATE_TOPICS)
     parser.add_argument("--topics-only", action="store_true")
     parser.add_argument("--upload", action="store_true")
     parser.add_argument("--privacy", default="private", choices=["private", "public", "unlisted"])
@@ -193,10 +260,7 @@ if __name__ == "__main__":
 
     topic = args.topic
     if not topic:
-        topics = read_topics(topics_file)
-        if not topics:
-            raise SystemExit(f"No topics found in {topics_file}. Generate some with --generate-topics 20.")
-        topic = select_random_unused_topic(topics)
+        topic = ensure_unused_topic(topics_file, args.auto_generate_topics)
 
     py = sys.executable
 

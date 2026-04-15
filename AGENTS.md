@@ -161,7 +161,12 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   translation, tiny number example, practical takeaway, and short CTA.
 - Preferred positioning is "professional finance explained like a smart friend":
   series concepts include `Money Mechanics in 45 Seconds`, `The Hidden Cost`,
-  `Finance Terms That Actually Matter`, and `One Chart, One Lesson`.
+  `Finance Terms That Actually Matter`, `One Chart, One Lesson`, `What This
+  Really Means For Your Wallet`, and `Beginner Finance, But Not Dumbed Down`.
+- Topic titles should work in the first second: use concrete, slightly
+  contrarian finance statements, not generic questions.
+- `run_pipeline.py` refills exhausted topic lists automatically with 20 fresh
+  Ollama-generated titles by default; use `--auto-generate-topics 0` to disable.
 - Spoken script text is normalized before TTS so finance notation reads
   naturally: `$1,000` -> `one thousand dollars`, `4%` -> `four percent`,
   `$1.50` -> `one dollar and fifty cents`, and `401(k)` -> `four oh one k`.
@@ -229,3 +234,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Updated `prompts/system_prompt.txt` to ask the model to write spoken script
   numbers, currencies, and percentages exactly as they should be read aloud.
 - Updated `README.md` with examples of the TTS number normalization behavior.
+- Added 20 new market-standard finance topic titles to `topics.txt`, using
+  one-second hook statements around hidden costs, misunderstood mechanisms, and
+  wallet-level consequences.
+- Updated `run_pipeline.py` so random generation automatically refills an empty
+  or exhausted topics file with fresh Ollama-generated titles, defaulting to 20.
+- Updated the topic-generation prompt to avoid generic questions and produce
+  concrete, slightly contrarian finance statements aligned with the channel
+  lanes.
+- Updated `README.md` with the automatic topic refill behavior and
+  `--auto-generate-topics` override.

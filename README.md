@@ -280,9 +280,22 @@ What happens:
 - The pipeline reads `topics.txt`.
 - It checks `outputs/` and existing `metadata.json` files.
 - It randomly picks a topic that has not been generated before.
+- If `topics.txt` is empty, or every topic has already been generated, it asks
+  Ollama for 20 fresh market-standard topic titles and appends the non-duplicate
+  results before picking one.
 - It generates the video the same way as a manual `--topic` run.
 
-If every topic in `topics.txt` was already generated, the command exits and asks you to generate more topics.
+Override the automatic refill count:
+
+```powershell
+python run_pipeline.py --auto-generate-topics 30
+```
+
+Set it to `0` to disable automatic refill and fail when no unused topics remain:
+
+```powershell
+python run_pipeline.py --auto-generate-topics 0
+```
 
 ### Generate and upload in one command
 
@@ -319,7 +332,9 @@ python run_pipeline.py --generate-topics 20 --topics-only
 
 What happens:
 
-- Ollama generates 20 beginner-friendly personal finance topic titles.
+- Ollama generates 20 topic titles in the channel style: concrete, slightly
+  contrarian, one financial mechanism per title, and suitable for a one-second
+  Shorts hook.
 - New, non-duplicate topics are appended to `topics.txt`.
 - No video is rendered.
 - Nothing is uploaded to YouTube.
