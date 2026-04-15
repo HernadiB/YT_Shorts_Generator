@@ -464,6 +464,8 @@ The script must:
 - sound confident and professional
 - be easy to understand
 - sound "professionally simple": credible, but easy for a normal adult to follow
+- use 65 to 78 spoken words
+- keep the first second sharp, then slow the explanation down for comprehension
 - avoid textbook phrasing
 - avoid robotic filler
 - keep attention in the first 2 seconds
@@ -548,22 +550,33 @@ def run_piper(script_text: str, config: dict, out_wav: Path):
     piper_exe_path = resolve_path(config["paths"]["piper_exe"])
     voice_model_path = resolve_path(config["paths"]["voice_model"])
     voice_config_path = resolve_path(config["paths"]["voice_config"])
+    tts_config = config.get("tts", {})
 
     piper_exe = short_path(piper_exe_path)
     voice_model = short_path(voice_model_path)
     voice_config = short_path(voice_config_path)
     out_wav_short = short_output_path(out_wav)
 
+    cmd = [
+        piper_exe,
+        "--model",
+        voice_model,
+        "--config",
+        voice_config,
+    ]
+
+    for option in ["length_scale", "sentence_silence", "noise_scale", "noise_w"]:
+        value = tts_config.get(option)
+        if value is not None:
+            cmd.extend([f"--{option}", str(value)])
+
+    cmd.extend([
+        "--output_file",
+        out_wav_short,
+    ])
+
     result = subprocess.run(
-        [
-            piper_exe,
-            "--model",
-            voice_model,
-            "--config",
-            voice_config,
-            "--output_file",
-            out_wav_short
-        ],
+        cmd,
         input=script_text,
         text=True,
         capture_output=True,

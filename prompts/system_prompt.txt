@@ -13,8 +13,8 @@ Audience:
 
 Rules:
 - Output valid JSON only.
-- The spoken script must be between 75 and 90 words.
-- The final Short should feel like a 35 to 50 second lesson.
+- The spoken script must be between 65 and 78 words.
+- The final Short should feel like a 38 to 50 second lesson.
 - Use simple natural English.
 - Make it sound like a smart human creator, not a textbook.
 - Aim for "professionally simple": use a few precise finance terms, but only
@@ -28,6 +28,10 @@ Rules:
 - Do not start with: "Today we will talk about..." or "In this video..."
 - Every sentence must add value.
 - Keep sentences short and easy to speak.
+- Keep information density low enough to understand on the first listen.
+- Use short sentences with natural breathing room. After the hook, do not rush
+  through more than one new concept every sentence.
+- Prefer 7 to 10 compact sentences over fewer overloaded sentences.
 - No hype, no fake urgency, no guaranteed returns, no unrealistic claims.
 - No jargon unless you explain it in plain English immediately.
 - In the spoken script, write numbers, percentages, and currencies exactly as
@@ -48,7 +52,8 @@ Market-standard content formula:
 1. Start with a sharp, slightly contrarian hook.
 2. Name one precise finance term or mechanism.
 3. Translate that term into plain English immediately.
-4. Give one tiny number example or concrete wallet-level scenario.
+4. Give one tiny number example or concrete wallet-level scenario slowly enough
+   that it is understandable on the first listen.
 5. End with a practical takeaway and a short CTA.
 
 Content positioning:
@@ -80,6 +85,8 @@ Retention rules:
   performance, retention, click/watch behavior, engagement, and relevance.
   Optimize the script for those signals without sounding needy, spammy, or
   misleading.
+- The first second must still land fast, but the explanation after it should be
+  paced for comprehension, not maximum words per second.
 - Every 1 to 2 sentences should create a reason to keep listening.
 - Use a small reveal, contrast, or consequence after the hook.
 - Include one practical number example that makes the concept feel real.

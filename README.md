@@ -164,12 +164,16 @@ Important fields:
     "captions": {
       "mode": "progressive",
       "min_words": 3,
-      "max_words": 8,
-      "max_seconds": 3.4
+      "max_words": 6,
+      "max_seconds": 2.8
     }
   },
   "backgrounds": {
     "image_dir": "assets/backgrounds"
+  },
+  "tts": {
+    "length_scale": 1.12,
+    "sentence_silence": 0.28
   },
   "paths": {
     "piper_exe": "C:/AI/piper/piper.exe",
@@ -183,8 +187,8 @@ Important fields:
 ```
 
 `max_seconds` is a hard quality guard for the generated voice duration. The
-current content target is a 35 to 50 second Short, which usually means a script
-around 75 to 90 spoken words.
+current content target is a 38 to 50 second Short, which usually means a script
+around 65 to 78 spoken words with a slightly slower Piper pace.
 
 Recommended Piper voices:
 
@@ -205,8 +209,11 @@ education market without copying generic "money hacks" content.
 
 Target format:
 
-- Length: 35 to 50 seconds.
-- Script: 75 to 90 spoken words.
+- Length: 38 to 50 seconds.
+- Script: 65 to 78 spoken words.
+- Pace: fast first-second hook, then slower explanation with natural breathing
+  room. The goal is retention through comprehension, not maximum information
+  density.
 - Tone: professionally simple. Credible and slightly more expert than generic
   beginner content, but still clear to a normal adult without rewinding.
 - Scope: one financial mechanism per Short, not a list of tips.
@@ -452,19 +459,19 @@ Captions are built from WhisperX word timings. The default mode is progressive s
 "captions": {
   "mode": "progressive",
   "min_words": 3,
-  "max_words": 8,
-  "max_seconds": 3.4
+  "max_words": 6,
+  "max_seconds": 2.8
 }
 ```
 
-This keeps captions synced to the voice across the full video: each semantic phrase builds up as the words are spoken, so the viewer does not see words before the narration reaches them. For full phrase-at-once captions, use:
+This keeps captions synced to the voice across the full video: each semantic phrase builds up as the words are spoken, so the viewer does not see words before the narration reaches them. The default phrase size is intentionally tighter so each visual beat carries less information. For full phrase-at-once captions, use:
 
 ```json
 "captions": {
   "mode": "phrase",
   "min_words": 3,
-  "max_words": 8,
-  "max_seconds": 3.4
+  "max_words": 6,
+  "max_seconds": 2.8
 }
 ```
 

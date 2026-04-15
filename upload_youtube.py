@@ -26,7 +26,7 @@ def resolve_path(p):
 
 
 def load_config():
-    with open(ROOT / "config.json", "r", encoding="utf-8") as f:
+    with open(ROOT / "config.json", "r", encoding="utf-8-sig") as f:
         return json.load(f)
 
 

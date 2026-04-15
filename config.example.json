@@ -9,12 +9,16 @@
     "captions": {
       "mode": "progressive",
       "min_words": 3,
-      "max_words": 8,
-      "max_seconds": 3.4
+      "max_words": 6,
+      "max_seconds": 2.8
     }
   },
   "backgrounds": {
     "image_dir": "assets/backgrounds"
+  },
+  "tts": {
+    "length_scale": 1.12,
+    "sentence_silence": 0.28
   },
   "music": {
     "library_dir": "assets/music/library",

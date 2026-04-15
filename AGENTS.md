@@ -156,9 +156,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Script tone should be "professionally simple": credible and slightly more
   expert than generic beginner content, but still clear to a normal adult
   without rewinding.
-- Content strategy target: 35 to 50 second Shorts, 75 to 90 spoken words, one
+- Content strategy target: 38 to 50 second Shorts, 65 to 78 spoken words, one
   financial mechanism per video, contrarian hook, precise term, plain-English
   translation, tiny number example, practical takeaway, and short CTA.
+- Pacing strategy: keep the first-second hook sharp, then slow the explanation
+  for comprehension. Current defaults use Piper `length_scale = 1.12`,
+  `sentence_silence = 0.28`, and progressive caption groups capped around 6
+  words or 2.8 seconds.
 - Preferred positioning is "professional finance explained like a smart friend":
   series concepts include `Money Mechanics in 45 Seconds`, `The Hidden Cost`,
   `Finance Terms That Actually Matter`, `One Chart, One Lesson`, `What This
@@ -219,10 +223,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Refined `prompts/system_prompt.txt` tone guidance so generated scripts sound
   credible and slightly professional for average viewers without becoming
   academic, bank-like, or overloaded with jargon.
-- Built the Shorts market-standard strategy into the project: prompt now targets
-  75 to 90 spoken words, 35 to 50 seconds, one finance mechanism per Short,
-  contrarian hook, plain-English translation, tiny number example, and practical
-  takeaway.
+- Built the Shorts market-standard strategy into the project: prompt targeted
+  one finance mechanism per Short, contrarian hook, plain-English translation,
+  tiny number example, and practical takeaway.
 - Updated `README.md` with the content standard and preferred content lanes.
 - Updated `config.example.json` and local ignored `config.json` to use
   `video.max_seconds = 50`.
@@ -244,3 +247,8 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   lanes.
 - Updated `README.md` with the automatic topic refill behavior and
   `--auto-generate-topics` override.
+- Tuned pacing for finance comprehension without weakening the first-second
+  hook: prompt now targets 65 to 78 spoken words and 38 to 50 seconds,
+  `run_piper()` passes optional Piper `tts` settings from config, defaults use
+  `length_scale = 1.12` and `sentence_silence = 0.28`, and caption groups are
+  capped at 6 words or 2.8 seconds.
