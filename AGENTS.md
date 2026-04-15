@@ -33,6 +33,12 @@ trying a sandboxed push first.
   unused topic, call the generator, and optionally upload the latest output.
 - `upload_youtube.py`: uploads an existing rendered video using YouTube OAuth
   credentials from `client_secret.json` and `token.json`.
+- `setup_channel.py`: applies integrity-focused channel branding, keywords,
+  playlists, and home tab playlist sections using a separate local
+  `channel_token.json`.
+- `channel_profile.json`: public channel positioning config for the recommended
+  `Money Mechanics` identity, descriptions, playlist structure, pinned comment
+  template, and manual Studio checklist.
 - `test_voice.py`: quick Piper smoke test that writes `test_voice.wav`.
 - `setup_windows.ps1`: Windows setup helper for dependencies and local config.
 - `prompts/system_prompt.txt`: system prompt for Shorts script and metadata.
@@ -72,7 +78,7 @@ trying a sandboxed push first.
 ## Configuration Notes
 
 - Local secrets/config files should remain uncommitted: `.env`, `config.json`,
-  `client_secret.json`, `token.json`.
+  `client_secret.json`, `token.json`, `channel_token.json`.
 - `.env` should define at least `OLLAMA_MODEL` and `OLLAMA_URL`.
 - `config.json` controls video size, FPS, max length, caption settings,
   background/music directories, branding text, Piper paths, FFmpeg paths, and
@@ -186,6 +192,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   WhisperX models, FFmpeg, and local paths being correctly configured.
 - Do not inspect or print OAuth tokens or local credential files unless the user
   explicitly asks and there is a clear reason.
+- Do not ask the user to paste OAuth tokens into chat. Channel setup should use
+  `python setup_channel.py --apply`, which opens local browser OAuth and stores
+  `channel_token.json`.
 
 ## Session Log
 
@@ -258,3 +267,10 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Updated replay/retention prompt guidance: scripts should be clear on first
   watch, rewarding on second watch, and end by looping the final takeaway back
   to the opening hook instead of becoming intentionally unclear.
+- Added `channel_profile.json` and `setup_channel.py` so the recommended
+  integrity-focused YouTube channel positioning can be applied through local
+  OAuth without sharing tokens in chat.
+- Channel setup can update description, keywords, default language/country,
+  public playlists, and home tab playlist sections. Channel name, handle,
+  profile picture, banner upload, upload defaults, paid promotion disclosures,
+  and altered/synthetic disclosures remain manual YouTube Studio steps.

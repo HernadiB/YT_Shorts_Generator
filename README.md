@@ -20,10 +20,12 @@ YT_Shorts_Generator/
 |-- generate_short.py                 # Generate script, voice, scenes, and final video
 |-- run_pipeline.py                   # Generate one short and optionally upload it
 |-- upload_youtube.py                 # Upload an existing rendered short to YouTube
+|-- setup_channel.py                  # Apply channel branding, playlists, and sections
 |-- test_voice.py                     # Quick Piper voice test
 |-- setup_windows.ps1                 # Human-readable Windows setup helper
 |-- requirements.txt                  # Python dependencies
 |-- config.example.json               # Template for local config.json
+|-- channel_profile.json              # Public channel positioning and setup config
 |-- .env.example                      # Template for local .env
 |-- topics.txt                        # Topic pool for random generation
 |-- prompts/
@@ -45,7 +47,7 @@ YT_Shorts_Generator/
 `-- voices/                           # Optional local Piper install/voices, ignored by git
 ```
 
-Local-only files such as `.env`, `config.json`, `client_secret.json`, `token.json`, `.venv/`, `outputs/`, generated media, and voice assets should not be committed.
+Local-only files such as `.env`, `config.json`, `client_secret.json`, `token.json`, `channel_token.json`, `.venv/`, `outputs/`, generated media, and voice assets should not be committed.
 
 ## Prerequisites
 
@@ -429,7 +431,7 @@ Run the static checks used by CI:
 
 ```powershell
 python -m pip install ruff bandit
-python -m compileall -q generate_short.py run_pipeline.py upload_youtube.py test_voice.py
+python -m compileall -q generate_short.py run_pipeline.py setup_channel.py upload_youtube.py test_voice.py
 ruff check --output-format=github .
 bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv,./outputs,./voices,./assets/music
 ```
@@ -502,6 +504,58 @@ python run_pipeline.py --topic "ETF basics" --upload --privacy private
 ```
 
 The first upload opens a browser login flow and creates a local `token.json`. Both `client_secret.json` and `token.json` are local secrets and must not be committed.
+
+## YouTube Channel Setup
+
+The repository includes a channel setup profile and helper script for applying
+the integrity-focused channel positioning:
+
+- Channel concept: `Money Mechanics`
+- Banner copy: `Money Mechanics in 45 Seconds` / `Clear finance. No hype. No guarantees.`
+- About text: professional finance explained in plain English, with clear
+  education-only and no-advice disclaimers.
+- Playlists and home sections: `Start Here`, `Money Mechanics in 45 Seconds`,
+  `The Hidden Cost`, `Finance Terms That Actually Matter`, `One Chart, One
+  Lesson`, `Debt and Credit`, `Inflation and Cash`, `Investing Basics`.
+
+Preview the channel changes without applying them:
+
+```powershell
+python setup_channel.py
+```
+
+Apply channel description, keywords, playlists, and playlist sections:
+
+```powershell
+python setup_channel.py --apply
+```
+
+The first run opens a local browser OAuth flow and creates
+`channel_token.json`, even in preview mode, because it reads the current channel
+state before deciding what would change. Do not paste OAuth tokens into chat.
+The setup token is separate from `token.json`, which is used for uploads.
+
+What the script can update through the YouTube Data API:
+
+- Channel description, keywords, default language, and country.
+- Public playlists from `channel_profile.json`.
+- Home tab playlist sections for those playlists.
+
+What still needs manual YouTube Studio work:
+
+- Channel name and handle.
+- Profile picture and banner image upload.
+- Upload defaults description.
+- Paid promotion disclosure when a sponsor, affiliate relationship, or
+  endorsement exists.
+- Altered/synthetic disclosure when realistic AI-generated content could
+  mislead viewers.
+
+Recommended manual values are stored in:
+
+```text
+channel_profile.json
+```
 
 ## CI
 

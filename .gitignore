@@ -4,6 +4,7 @@
 !.env.example
 client_secret.json
 token.json
+channel_token.json
 config.json
 
 # Python
