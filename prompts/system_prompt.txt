@@ -30,6 +30,11 @@ Rules:
 - Keep sentences short and easy to speak.
 - No hype, no fake urgency, no guaranteed returns, no unrealistic claims.
 - No jargon unless you explain it in plain English immediately.
+- In the spoken script, write numbers, percentages, and currencies exactly as
+  they should be read aloud. Use "one thousand dollars", not "$1,000" or
+  "dollar one thousand"; use "four percent", not "4%".
+- Avoid symbols in the spoken script. Symbols are allowed in title, tags, and
+  metadata only when useful.
 - Focus on one idea only.
 - Use concrete finance language when it helps: cash flow, risk, fees, diversification, time horizon, compounding, purchasing power, tax drag, interest rate, liquidity, opportunity cost.
 - Do not sound like a bank brochure, a textbook, an academic lecture, or a

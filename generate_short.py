@@ -26,6 +26,31 @@ DEFAULT_TAGS = [
 ]
 DEFAULT_HASHTAGS = ["#Shorts", "#PersonalFinance", "#FinanceTips"]
 MAX_YOUTUBE_TAG_CHARS = 480
+NUMBER_WORDS_ONES = [
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+    "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+    "sixteen", "seventeen", "eighteen", "nineteen",
+]
+NUMBER_WORDS_TENS = [
+    "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+    "eighty", "ninety",
+]
+CURRENCY_SYMBOLS = {
+    "$": ("dollar", "dollars"),
+    "€": ("euro", "euros"),
+    "£": ("pound", "pounds"),
+}
+CURRENCY_CODES = {
+    "USD": ("dollar", "dollars"),
+    "EUR": ("euro", "euros"),
+    "GBP": ("pound", "pounds"),
+}
+NUMBER_SUFFIXES = {
+    "k": "thousand",
+    "m": "million",
+    "b": "billion",
+    "t": "trillion",
+}
 
 
 def resolve_path(p):
@@ -232,6 +257,183 @@ def append_hashtags_to_description(description: str, hashtags):
     return description
 
 
+def integer_to_words(value: int):
+    value = int(value)
+
+    if value < 0:
+        return f"minus {integer_to_words(abs(value))}"
+
+    if value < 20:
+        return NUMBER_WORDS_ONES[value]
+
+    if value < 100:
+        tens, ones = divmod(value, 10)
+        if ones:
+            return f"{NUMBER_WORDS_TENS[tens]} {NUMBER_WORDS_ONES[ones]}"
+        return NUMBER_WORDS_TENS[tens]
+
+    if value < 1000:
+        hundreds, rest = divmod(value, 100)
+        words = f"{NUMBER_WORDS_ONES[hundreds]} hundred"
+        if rest:
+            words = f"{words} {integer_to_words(rest)}"
+        return words
+
+    for size, label in [
+        (1_000_000_000_000, "trillion"),
+        (1_000_000_000, "billion"),
+        (1_000_000, "million"),
+        (1000, "thousand"),
+    ]:
+        if value >= size:
+            major, rest = divmod(value, size)
+            words = f"{integer_to_words(major)} {label}"
+            if rest:
+                words = f"{words} {integer_to_words(rest)}"
+            return words
+
+    return str(value)
+
+
+def decimal_to_words(value: str):
+    whole, fraction = value.split(".", 1)
+    whole_words = integer_to_words(int(whole or "0"))
+    fraction_words = " ".join(NUMBER_WORDS_ONES[int(digit)] for digit in fraction)
+    return f"{whole_words} point {fraction_words}"
+
+
+def amount_to_words(value: str, suffix: str = ""):
+    value = value.replace(",", "")
+
+    if "." in value:
+        words = decimal_to_words(value)
+    else:
+        words = integer_to_words(int(value))
+
+    if suffix:
+        words = f"{words} {NUMBER_SUFFIXES[suffix.lower()]}"
+
+    return words
+
+
+def currency_amount_to_words(value: str, currency_names, suffix: str = ""):
+    singular, plural = currency_names
+    clean_value = value.replace(",", "")
+
+    if suffix:
+        return f"{amount_to_words(clean_value, suffix)} {plural}"
+
+    if "." in clean_value:
+        whole, cents = clean_value.split(".", 1)
+        cents = cents[:2].ljust(2, "0")
+        whole_amount = int(whole or "0")
+        cent_amount = int(cents)
+
+        if cent_amount and whole_amount:
+            unit = singular if whole_amount == 1 else plural
+            cent_unit = "cent" if cent_amount == 1 else "cents"
+            return (
+                f"{integer_to_words(whole_amount)} {unit} and "
+                f"{integer_to_words(cent_amount)} {cent_unit}"
+            )
+
+        if cent_amount:
+            cent_unit = "cent" if cent_amount == 1 else "cents"
+            return f"{integer_to_words(cent_amount)} {cent_unit}"
+
+        unit = singular if whole_amount == 1 else plural
+        return f"{integer_to_words(whole_amount)} {unit}"
+
+    whole_amount = int(clean_value)
+    unit = singular if whole_amount == 1 else plural
+    return f"{integer_to_words(whole_amount)} {unit}"
+
+
+def normalize_spoken_numbers(text: str):
+    text = normalize(text)
+
+    if not text:
+        return ""
+
+    number = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+    compact_number = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"
+
+    def replace_symbol_currency(match):
+        symbol = match.group("symbol")
+        amount = match.group("amount")
+        suffix = match.group("suffix") or ""
+        return currency_amount_to_words(amount, CURRENCY_SYMBOLS[symbol], suffix)
+
+    text = re.sub(
+        rf"(?P<symbol>[$€£])\s*(?P<amount>{compact_number})(?:\s*(?P<suffix>[kKmMbBtT]))?\b",
+        replace_symbol_currency,
+        text,
+    )
+
+    def replace_prefix_currency(match):
+        code = match.group("code").upper()
+        amount = match.group("amount")
+        suffix = match.group("suffix") or ""
+        return currency_amount_to_words(amount, CURRENCY_CODES[code], suffix)
+
+    text = re.sub(
+        rf"\b(?P<code>USD|EUR|GBP)\s+(?P<amount>{number})(?:\s*(?P<suffix>[kKmMbBtT]))?\b",
+        replace_prefix_currency,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    def replace_suffix_currency(match):
+        amount = match.group("amount")
+        suffix = match.group("suffix") or ""
+        code = match.group("code").upper()
+        return currency_amount_to_words(amount, CURRENCY_CODES[code], suffix)
+
+    text = re.sub(
+        rf"\b(?P<amount>{number})\s*(?P<suffix>[kKmMbBtT])?\s+(?P<code>USD|EUR|GBP)\b",
+        replace_suffix_currency,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    text = re.sub(r"(?i)\b401\s*\(\s*k\s*\)", "four oh one k", text)
+
+    def replace_percent(match):
+        return f"{amount_to_words(match.group('amount'))} percent"
+
+    text = re.sub(
+        rf"\b(?P<amount>{number})\s*%",
+        replace_percent,
+        text,
+    )
+    text = re.sub(
+        rf"\b(?P<amount>{number})\s+percent\b",
+        replace_percent,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    def replace_compact_suffix(match):
+        return amount_to_words(match.group("amount"), match.group("suffix"))
+
+    text = re.sub(
+        rf"\b(?P<amount>{number})(?P<suffix>[kKmMbBtT])\b",
+        replace_compact_suffix,
+        text,
+    )
+
+    def replace_plain_number(match):
+        value = match.group("amount")
+        if "." in value:
+            return decimal_to_words(value.replace(",", ""))
+        return integer_to_words(int(value.replace(",", "")))
+
+    text = re.sub(rf"\b(?P<amount>{number})\b", replace_plain_number, text)
+    text = re.sub(r"\s+", " ", text).strip()
+
+    return text
+
+
 def normalize_sections(value: Any):
     if isinstance(value, list):
         sections = [normalize(v) for v in value]
@@ -269,6 +471,7 @@ The script must:
 - explain one finance mechanism, not a list of generic tips
 - include one tiny number example or concrete wallet-level scenario
 - name one precise finance term only if it is translated into plain English
+- write numbers, percentages, and currencies exactly as they should be spoken
 - end with a short CTA
 
 Return valid JSON only in this format:
@@ -301,6 +504,7 @@ Return valid JSON only in this format:
     parsed = json.loads(cleaned)
 
     parsed["script"] = normalize(parsed.get("script"))
+    parsed["script"] = normalize_spoken_numbers(parsed["script"])
     parsed["title"] = normalize(parsed.get("title"))
     parsed["description"] = normalize(parsed.get("description"))
     parsed["sections"] = normalize_sections(parsed.get("sections"))

@@ -162,6 +162,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Preferred positioning is "professional finance explained like a smart friend":
   series concepts include `Money Mechanics in 45 Seconds`, `The Hidden Cost`,
   `Finance Terms That Actually Matter`, and `One Chart, One Lesson`.
+- Spoken script text is normalized before TTS so finance notation reads
+  naturally: `$1,000` -> `one thousand dollars`, `4%` -> `four percent`,
+  `$1.50` -> `one dollar and fifty cents`, and `401(k)` -> `four oh one k`.
 - `pick_font()` uses `C:/Windows/Fonts/arialbd.ttf`, so rendering is currently
   Windows-specific.
 - `run_pipeline.py` assumes the latest modified directory under `outputs/` is
@@ -220,3 +223,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   `video.max_seconds = 50`.
 - Updated `generate_short.py` to validate generated voice duration against
   `video.max_seconds` before WhisperX/rendering, so overlong scripts fail fast.
+- Added TTS-friendly spoken number normalization for the generated script:
+  currency symbols/codes, percentages, compact magnitudes, plain numbers, and
+  `401(k)` are converted to words before Piper and caption timing.
+- Updated `prompts/system_prompt.txt` to ask the model to write spoken script
+  numbers, currencies, and percentages exactly as they should be read aloud.
+- Updated `README.md` with examples of the TTS number normalization behavior.

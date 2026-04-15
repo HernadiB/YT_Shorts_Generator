@@ -226,6 +226,23 @@ Preferred content lanes:
 Avoid get-rich framing, fake urgency, broad motivation, unrelated trend terms,
 and overcomplicated academic explanations.
 
+## TTS-Friendly Numbers
+
+The generator normalizes the spoken script before Piper receives it. This avoids
+awkward text-to-speech readings of finance notation.
+
+Examples:
+
+- `$1,000` becomes `one thousand dollars`
+- `4%` becomes `four percent`
+- `$1.50` becomes `one dollar and fifty cents`
+- `$1.5M` becomes `one point five million dollars`
+- `401(k)` becomes `four oh one k`
+
+The prompt also asks the LLM to write numbers, currencies, and percentages in
+spoken form inside the script. Symbols can still appear in titles, tags, and
+metadata when useful.
+
 ## Video Generation Commands
 
 ### Generate a video from a specific topic
