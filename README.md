@@ -160,7 +160,7 @@ Important fields:
     "width": 1080,
     "height": 1920,
     "fps": 30,
-    "max_seconds": 55,
+    "max_seconds": 50,
     "captions": {
       "mode": "progressive",
       "min_words": 3,
@@ -182,6 +182,10 @@ Important fields:
 }
 ```
 
+`max_seconds` is a hard quality guard for the generated voice duration. The
+current content target is a 35 to 50 second Short, which usually means a script
+around 75 to 90 spoken words.
+
 Recommended Piper voices:
 
 - `en_US-lessac-medium`
@@ -193,6 +197,34 @@ Test Piper before generating a full video:
 ```powershell
 python test_voice.py
 ```
+
+## Content Standard
+
+The generator is tuned for finance Shorts that match the current short-form
+education market without copying generic "money hacks" content.
+
+Target format:
+
+- Length: 35 to 50 seconds.
+- Script: 75 to 90 spoken words.
+- Tone: professionally simple. Credible and slightly more expert than generic
+  beginner content, but still clear to a normal adult without rewinding.
+- Scope: one financial mechanism per Short, not a list of tips.
+- Structure: contrarian hook, precise term, plain-English translation, tiny
+  number example, practical takeaway, short CTA.
+- Discovery focus: retention, click/watch behavior, engagement, relevance, and
+  viewer personalization. Metadata supports relevance but should not become
+  keyword stuffing.
+
+Preferred content lanes:
+
+- `Money Mechanics in 45 Seconds`
+- `The Hidden Cost`
+- `Finance Terms That Actually Matter`
+- `One Chart, One Lesson`
+
+Avoid get-rich framing, fake urgency, broad motivation, unrelated trend terms,
+and overcomplicated academic explanations.
 
 ## Video Generation Commands
 

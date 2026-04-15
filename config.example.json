@@ -5,7 +5,7 @@
     "width": 1080,
     "height": 1920,
     "fps": 30,
-    "max_seconds": 55,
+    "max_seconds": 50,
     "captions": {
       "mode": "progressive",
       "min_words": 3,

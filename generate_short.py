@@ -261,11 +261,14 @@ The script must:
 - feel human
 - sound confident and professional
 - be easy to understand
+- sound "professionally simple": credible, but easy for a normal adult to follow
 - avoid textbook phrasing
 - avoid robotic filler
 - keep attention in the first 2 seconds
 - explain one concept clearly
-- include one very simple example
+- explain one finance mechanism, not a list of generic tips
+- include one tiny number example or concrete wallet-level scenario
+- name one precise finance term only if it is translated into plain English
 - end with a short CTA
 
 Return valid JSON only in this format:
@@ -570,6 +573,22 @@ def get_audio_duration(audio_path: Path, config: dict) -> float:
     return float(result.stdout.strip())
 
 
+def validate_audio_duration(audio_duration: float, config: dict):
+    max_seconds = config.get("video", {}).get("max_seconds")
+    if not max_seconds:
+        return
+
+    max_seconds = float(max_seconds)
+    if audio_duration <= max_seconds:
+        return
+
+    raise ValueError(
+        f"Generated voice is {audio_duration:.1f}s, above the configured "
+        f"{max_seconds:.1f}s Shorts target. Regenerate with a shorter script "
+        "or raise video.max_seconds in config.json."
+    )
+
+
 def build_visual_timeline(chunks, audio_duration, fps):
     if not chunks:
         raise ValueError("Cannot build visual timeline without chunks.")
@@ -848,6 +867,7 @@ def main():
 
     fps = config["video"]["fps"]
     audio_duration = get_audio_duration(wav, config)
+    validate_audio_duration(audio_duration, config)
     words = transcribe_words(wav)
     chunks = build_caption_chunks(words, fps, config)
     timeline = build_visual_timeline(chunks, audio_duration, fps)

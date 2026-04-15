@@ -156,6 +156,12 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Script tone should be "professionally simple": credible and slightly more
   expert than generic beginner content, but still clear to a normal adult
   without rewinding.
+- Content strategy target: 35 to 50 second Shorts, 75 to 90 spoken words, one
+  financial mechanism per video, contrarian hook, precise term, plain-English
+  translation, tiny number example, practical takeaway, and short CTA.
+- Preferred positioning is "professional finance explained like a smart friend":
+  series concepts include `Money Mechanics in 45 Seconds`, `The Hidden Cost`,
+  `Finance Terms That Actually Matter`, and `One Chart, One Lesson`.
 - `pick_font()` uses `C:/Windows/Fonts/arialbd.ttf`, so rendering is currently
   Windows-specific.
 - `run_pipeline.py` assumes the latest modified directory under `outputs/` is
@@ -205,3 +211,12 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Refined `prompts/system_prompt.txt` tone guidance so generated scripts sound
   credible and slightly professional for average viewers without becoming
   academic, bank-like, or overloaded with jargon.
+- Built the Shorts market-standard strategy into the project: prompt now targets
+  75 to 90 spoken words, 35 to 50 seconds, one finance mechanism per Short,
+  contrarian hook, plain-English translation, tiny number example, and practical
+  takeaway.
+- Updated `README.md` with the content standard and preferred content lanes.
+- Updated `config.example.json` and local ignored `config.json` to use
+  `video.max_seconds = 50`.
+- Updated `generate_short.py` to validate generated voice duration against
+  `video.max_seconds` before WhisperX/rendering, so overlong scripts fail fast.
