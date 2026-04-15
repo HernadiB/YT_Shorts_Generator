@@ -134,6 +134,12 @@ Search keyword rules:
 - These phrases should describe how a real beginner would look for this topic.
 - Keep them accurate to the script and avoid exaggerated promises.
 
+Playlist rules:
+- Return the best matching playlist or series name in the playlist field.
+- If the caller provides allowed playlist titles, use one exact title from that
+  list.
+- Pick the playlist based on the actual lesson, not only the broad topic.
+
 Return JSON in exactly this schema:
 {
   "title": "string",
@@ -141,6 +147,7 @@ Return JSON in exactly this schema:
   "tags": ["string", "string"],
   "hashtags": ["#Shorts", "#PersonalFinance", "#FinanceTips"],
   "search_keywords": ["string", "string"],
+  "playlist": "string",
   "script": "string",
   "sections": ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
 }

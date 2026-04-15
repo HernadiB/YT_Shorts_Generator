@@ -5,6 +5,7 @@
 client_secret.json
 token.json
 channel_token.json
+channel_state.json
 config.json
 
 # Python

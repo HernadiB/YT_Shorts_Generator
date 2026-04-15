@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent
 OUTPUTS = ROOT / "outputs"
 PROMPTS = ROOT / "prompts"
+CHANNEL_PROFILE_FILE = ROOT / "channel_profile.json"
 DEFAULT_TAGS = [
     "personal finance",
     "finance",
@@ -96,6 +97,16 @@ def load_config():
     load_dotenv(ROOT / ".env")
     with open(ROOT / "config.json", "r", encoding="utf-8-sig") as f:
         return json.load(f)
+
+
+def load_channel_profile():
+    if not CHANNEL_PROFILE_FILE.exists():
+        return {}
+
+    try:
+        return json.loads(CHANNEL_PROFILE_FILE.read_text(encoding="utf-8-sig"))
+    except json.JSONDecodeError:
+        return {}
 
 
 def safe_slug(text: str):
@@ -450,14 +461,47 @@ def normalize_sections(value: Any):
     return sections
 
 
+def channel_playlist_titles(profile):
+    titles = []
+
+    for playlist in profile.get("playlists", []):
+        title = normalize(playlist.get("title"))
+        if title:
+            titles.append(title)
+
+    return titles
+
+
+def normalize_playlist(value: Any, allowed_titles):
+    playlist = normalize(value)
+    if not playlist:
+        return ""
+
+    if not allowed_titles:
+        return playlist
+
+    normalized = {" ".join(title.split()).casefold(): title for title in allowed_titles}
+    return normalized.get(" ".join(playlist.split()).casefold(), "")
+
+
 def ask_ollama(topic, model, url):
     system_prompt = (PROMPTS / "system_prompt.txt").read_text(encoding="utf-8")
+    profile = load_channel_profile()
+    playlist_titles = channel_playlist_titles(profile)
+    playlist_guidance = ""
+    if playlist_titles:
+        playlist_guidance = (
+            "\nChoose the single best playlist for this Short. "
+            "Use one exact title from this list:\n"
+            f"{json.dumps(playlist_titles, ensure_ascii=False)}\n"
+        )
 
     prompt = f"""{system_prompt}
 
 Topic: {topic}
 
 Create a faceless English YouTube Short about this topic for beginners in personal finance.
+{playlist_guidance}
 
 The script must:
 - feel human
@@ -486,6 +530,7 @@ Return valid JSON only in this format:
   "tags": ["string", "string"],
   "hashtags": ["#Shorts", "#PersonalFinance", "#FinanceTips"],
   "search_keywords": ["string", "string"],
+  "playlist": "string",
   "script": "string",
   "sections": ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
 }}
@@ -512,6 +557,7 @@ Return valid JSON only in this format:
     parsed["script"] = normalize_spoken_numbers(parsed["script"])
     parsed["title"] = normalize(parsed.get("title"))
     parsed["description"] = normalize(parsed.get("description"))
+    parsed["playlist"] = normalize_playlist(parsed.get("playlist"), playlist_titles)
     parsed["sections"] = normalize_sections(parsed.get("sections"))
 
     if not parsed["title"]:

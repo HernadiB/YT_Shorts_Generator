@@ -47,7 +47,7 @@ YT_Shorts_Generator/
 `-- voices/                           # Optional local Piper install/voices, ignored by git
 ```
 
-Local-only files such as `.env`, `config.json`, `client_secret.json`, `token.json`, `channel_token.json`, `.venv/`, `outputs/`, generated media, and voice assets should not be committed.
+Local-only files such as `.env`, `config.json`, `client_secret.json`, `token.json`, `channel_token.json`, `channel_state.json`, `.venv/`, `outputs/`, generated media, and voice assets should not be committed.
 
 ## Prerequisites
 
@@ -319,6 +319,7 @@ What happens:
 - Generates the video locally first.
 - Uploads the final `short.mp4` to the YouTube account authorized by `client_secret.json` and `token.json`.
 - Uses the generated `metadata.json` title, description, and tags.
+- Adds the uploaded video to the best matching saved playlist when `channel_state.json` exists.
 - Upload privacy is controlled by `--privacy`.
 
 Supported privacy values:
@@ -392,6 +393,7 @@ What happens:
 - Reads YouTube title, description, and tags from the selected `metadata.json`.
 - Uploads to the YouTube account that completes the OAuth browser login.
 - Creates or reuses local `token.json`.
+- Adds the uploaded video to the best matching playlist from local `channel_state.json`.
 
 Upload destination:
 
@@ -400,6 +402,12 @@ YouTube account authorized by client_secret.json/token.json
 ```
 
 The script does not upload anywhere else. It does not publish to GitHub, cloud storage, or another video platform.
+
+Skip automatic playlist assignment:
+
+```powershell
+python upload_youtube.py --video "outputs/<slug>/short.mp4" --metadata "outputs/<slug>/metadata.json" --privacy private --skip-playlists
+```
 
 ## Command Outputs
 
@@ -414,7 +422,7 @@ Typical output:
 ```text
 outputs/<video-slug>/
 |-- script.txt          # Final script spoken by Piper
-|-- metadata.json       # Topic, title, description, tags, sections, optional music
+|-- metadata.json       # Topic, title, description, tags, playlist, sections, optional music
 |-- voice.wav           # Piper TTS audio
 |-- scenes/             # Rendered caption/background scene images
 |-- scenes.txt          # FFmpeg concat timing file
@@ -423,7 +431,7 @@ outputs/<video-slug>/
 
 `short.mp4` is the file to review, publish manually, or upload with `upload_youtube.py`.
 
-`metadata.json` stores the original selected `topic`. The random topic picker uses that metadata and output folder names to avoid generating the same topic twice.
+`metadata.json` stores the original selected `topic`. It may also include a best-fit `playlist` title for upload routing. The random topic picker uses the topic metadata and output folder names to avoid generating the same topic twice.
 
 ## Quality Commands
 
@@ -534,6 +542,29 @@ The first run opens a local browser OAuth flow and creates
 `channel_token.json`, even in preview mode, because it reads the current channel
 state before deciding what would change. Do not paste OAuth tokens into chat.
 The setup token is separate from `token.json`, which is used for uploads.
+When playlists are available, the setup script also writes local
+`channel_state.json` with the playlist IDs and routing rules used by uploads.
+This file is ignored by git because it is account-specific.
+
+If the playlists already exist and you only want to refresh the saved IDs:
+
+```powershell
+python setup_channel.py --write-state --skip-branding --skip-sections
+```
+
+Automatic upload routing uses:
+
+- Keyword routing from `channel_profile.json` based on the topic, title,
+  description, tags, search keywords, and script.
+- The generated `metadata.json` `playlist` field as a fallback when no routing
+  rule matches.
+- `Money Mechanics in 45 Seconds` as the default/general playlist.
+
+If `channel_state.json` is missing, upload still succeeds, but playlist
+assignment is skipped. Run `python setup_channel.py --apply` or
+`python setup_channel.py --write-state --skip-branding --skip-sections` first.
+If `token.json` was created before playlist routing existed, the next upload may
+open OAuth again so the script can request playlist management permission.
 
 What the script can update through the YouTube Data API:
 

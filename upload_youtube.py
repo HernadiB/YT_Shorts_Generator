@@ -9,10 +9,12 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 
 ROOT = Path(__file__).resolve().parent
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SCOPES = ["https://www.googleapis.com/auth/youtube"]
+CHANNEL_STATE_FILE = ROOT / "channel_state.json"
 DEFAULT_TAGS = ["personal finance", "finance", "money", "financial education"]
 DEFAULT_HASHTAGS = ["#Shorts", "#PersonalFinance", "#FinanceTips"]
 MAX_YOUTUBE_TAG_CHARS = 480
@@ -26,8 +28,46 @@ def resolve_path(p):
 
 
 def load_config():
-    with open(ROOT / "config.json", "r", encoding="utf-8-sig") as f:
+    return load_json(ROOT / "config.json")
+
+
+def load_json(path: Path):
+    with open(path, "r", encoding="utf-8-sig") as f:
         return json.load(f)
+
+
+def load_optional_json(path: Path):
+    if not path.exists():
+        return {}
+
+    return load_json(path)
+
+
+def normalize_title(title: str):
+    return " ".join(str(title).split()).casefold()
+
+
+def token_scopes(token_path: Path):
+    if not token_path.exists():
+        return set()
+
+    try:
+        token = json.loads(token_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return set()
+
+    scopes = token.get("scopes") or []
+    if isinstance(scopes, str):
+        return set(scopes.split())
+
+    if isinstance(scopes, list):
+        return {str(scope) for scope in scopes}
+
+    return set()
+
+
+def token_has_required_scopes(token_path: Path):
+    return set(SCOPES).issubset(token_scopes(token_path))
 
 
 def metadata_items(value):
@@ -38,6 +78,137 @@ def metadata_items(value):
         return [item.strip() for item in re.split(r",|\|", value) if item.strip()]
 
     return []
+
+
+def flatten_metadata_text(value):
+    if value is None:
+        return []
+
+    if isinstance(value, dict):
+        items = []
+        for nested in value.values():
+            items.extend(flatten_metadata_text(nested))
+        return items
+
+    if isinstance(value, list):
+        items = []
+        for nested in value:
+            items.extend(flatten_metadata_text(nested))
+        return items
+
+    text = str(value).strip()
+    return [text] if text else []
+
+
+def metadata_text(meta):
+    fields = [
+        "topic",
+        "title",
+        "description",
+        "tags",
+        "hashtags",
+        "search_keywords",
+        "sections",
+        "script",
+        "playlist",
+        "series",
+    ]
+    pieces = []
+    for field in fields:
+        pieces.extend(flatten_metadata_text(meta.get(field)))
+    return " ".join(pieces).casefold()
+
+
+def playlist_title_map(state):
+    return {
+        normalize_title(title): title
+        for title in state.get("playlists", {})
+        if str(title).strip()
+    }
+
+
+def canonical_playlist_title(title, state):
+    return playlist_title_map(state).get(normalize_title(title))
+
+
+def add_unique_playlist_title(selected, title, state):
+    canonical = canonical_playlist_title(title, state)
+    if not canonical:
+        return
+
+    if canonical not in selected:
+        selected.append(canonical)
+
+
+def keyword_match_count(text, keyword):
+    keyword = str(keyword).strip().casefold()
+    if not keyword:
+        return 0
+
+    escaped = re.escape(keyword)
+    if re.search(r"\s", keyword):
+        return len(re.findall(escaped, text))
+
+    return len(re.findall(rf"\b{escaped}\b", text))
+
+
+def select_playlist_titles(meta, state):
+    routing = state.get("upload_routing", {})
+    selected = []
+    explicit_titles = []
+
+    for field in ["playlist", "series"]:
+        for candidate in metadata_items(meta.get(field)):
+            canonical = canonical_playlist_title(candidate, state)
+            if canonical and canonical not in explicit_titles:
+                explicit_titles.append(canonical)
+
+    text = metadata_text(meta)
+    best_playlist = None
+    best_score = 0
+
+    for rule in routing.get("rules", []):
+        playlist = rule.get("playlist")
+        score = 0
+        for keyword in rule.get("keywords", []):
+            weight = 2 if re.search(r"\s", str(keyword).strip()) else 1
+            score += keyword_match_count(text, keyword) * weight
+
+        if score > best_score:
+            best_playlist = playlist
+            best_score = score
+
+    if best_playlist and best_score > 0:
+        add_unique_playlist_title(selected, best_playlist, state)
+    else:
+        for title in explicit_titles:
+            add_unique_playlist_title(selected, title, state)
+
+    for title in routing.get("always_add_playlists", []):
+        add_unique_playlist_title(selected, title, state)
+
+    if not selected:
+        default_playlist = routing.get("default_playlist")
+        add_unique_playlist_title(selected, default_playlist, state)
+
+    return selected
+
+
+def resolve_playlist_ids(titles, state):
+    playlists = state.get("playlists", {})
+    normalized_ids = {
+        normalize_title(title): (title, playlist_id)
+        for title, playlist_id in playlists.items()
+        if str(playlist_id).strip()
+    }
+
+    resolved = []
+    for title in titles:
+        match = normalized_ids.get(normalize_title(title))
+        if match:
+            resolved.append(match)
+
+    return resolved
 
 
 def normalize_tags(value):
@@ -109,11 +280,17 @@ def description_with_hashtags(description: str, hashtags):
 def get_credentials(client_secret_path: Path, token_path: Path) -> Credentials:
     creds = None
 
-    if token_path.exists():
+    if token_path.exists() and token_has_required_scopes(token_path):
         creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+    elif token_path.exists():
+        print(
+            "Existing token.json does not include playlist management scope; "
+            "opening OAuth again."
+        )
 
     if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
+        token_path.write_text(creds.to_json(), encoding="utf-8")
 
     if not creds or not creds.valid:
         flow = InstalledAppFlow.from_client_secrets_file(str(client_secret_path), SCOPES)
@@ -123,14 +300,85 @@ def get_credentials(client_secret_path: Path, token_path: Path) -> Credentials:
     return creds
 
 
-def upload_video(video_path: Path, metadata_path: Path, privacy_status: str):
+def video_in_playlist(youtube, playlist_id, video_id):
+    response = youtube.playlistItems().list(
+        part="id",
+        playlistId=playlist_id,
+        videoId=video_id,
+        maxResults=1,
+    ).execute()
+    return bool(response.get("items"))
+
+
+def add_video_to_playlist(youtube, playlist_id, video_id):
+    return youtube.playlistItems().insert(
+        part="snippet",
+        body={
+            "snippet": {
+                "playlistId": playlist_id,
+                "resourceId": {
+                    "kind": "youtube#video",
+                    "videoId": video_id,
+                },
+            },
+        },
+    ).execute()
+
+
+def assign_playlists(youtube, video_id, meta, skip_playlists: bool):
+    if skip_playlists:
+        print("Playlist assignment skipped by --skip-playlists.")
+        return []
+
+    state = load_optional_json(CHANNEL_STATE_FILE)
+    if not state:
+        print(
+            "No channel_state.json found; skipping playlist assignment. "
+            "Run python setup_channel.py --apply or --write-state first."
+        )
+        return []
+
+    titles = select_playlist_titles(meta, state)
+    if not titles:
+        print("No playlist matched the metadata; skipping playlist assignment.")
+        return []
+
+    playlist_refs = resolve_playlist_ids(titles, state)
+    resolved_titles = {title for title, _playlist_id in playlist_refs}
+    for title in titles:
+        if title not in resolved_titles:
+            print(f"Playlist ID missing in channel_state.json: {title}")
+
+    assigned = []
+    for title, playlist_id in playlist_refs:
+        try:
+            if video_in_playlist(youtube, playlist_id, video_id):
+                print(f"Already in playlist: {title}")
+            else:
+                add_video_to_playlist(youtube, playlist_id, video_id)
+                print(f"Added to playlist: {title}")
+            assigned.append(title)
+        except HttpError as exc:
+            raise RuntimeError(
+                f"Could not add video {video_id} to playlist {title}."
+            ) from exc
+
+    return assigned
+
+
+def upload_video(
+    video_path: Path,
+    metadata_path: Path,
+    privacy_status: str,
+    skip_playlists: bool = False,
+):
     config = load_config()
     upload_defaults = config.get("upload_defaults", {})
 
     video_path = resolve_path(video_path)
     metadata_path = resolve_path(metadata_path)
 
-    meta = json.loads(metadata_path.read_text(encoding="utf-8"))
+    meta = load_json(metadata_path)
     tags = normalize_tags(meta.get("tags"))
     hashtags = normalize_hashtags(meta.get("hashtags"), tags)
     description = description_with_hashtags(
@@ -182,7 +430,20 @@ def upload_video(video_path: Path, metadata_path: Path, privacy_status: str):
         if status:
             print(f"Upload progress: {int(status.progress() * 100)}%")
 
-    print(json.dumps(response, indent=2))
+    video_id = response.get("id")
+    assigned_playlists = []
+    if video_id:
+        assigned_playlists = assign_playlists(
+            youtube,
+            video_id,
+            meta,
+            skip_playlists,
+        )
+
+    print(json.dumps({
+        "upload": response,
+        "assigned_playlists": assigned_playlists,
+    }, indent=2))
 
 
 if __name__ == "__main__":
@@ -192,6 +453,7 @@ if __name__ == "__main__":
     parser.add_argument("--video", required=True)
     parser.add_argument("--metadata", required=True)
     parser.add_argument("--privacy", default="private", choices=["private", "public", "unlisted"])
+    parser.add_argument("--skip-playlists", action="store_true")
     args = parser.parse_args()
 
-    upload_video(args.video, args.metadata, args.privacy)
+    upload_video(args.video, args.metadata, args.privacy, args.skip_playlists)

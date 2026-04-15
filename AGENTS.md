@@ -32,10 +32,12 @@ trying a sandboxed push first.
 - `run_pipeline.py`: CLI orchestrator. Can generate topic titles, pick a random
   unused topic, call the generator, and optionally upload the latest output.
 - `upload_youtube.py`: uploads an existing rendered video using YouTube OAuth
-  credentials from `client_secret.json` and `token.json`.
+  credentials from `client_secret.json` and `token.json`, then assigns it to
+  saved playlists when `channel_state.json` exists.
 - `setup_channel.py`: applies integrity-focused channel branding, keywords,
   playlists, and home tab playlist sections using a separate local
-  `channel_token.json`.
+  `channel_token.json`; it can also write local playlist IDs to
+  `channel_state.json`.
 - `channel_profile.json`: public channel positioning config for the recommended
   `Money Mechanics` identity, descriptions, playlist structure, pinned comment
   template, and manual Studio checklist.
@@ -73,18 +75,23 @@ trying a sandboxed push first.
 14. A random music file can be selected from `assets/music/library/`.
 15. FFmpeg renders `short.mp4`; with music it uses sidechain compression.
 16. If `run_pipeline.py --upload` is set, `upload_youtube.py` uploads the final
-    video using generated metadata.
+    video using generated metadata and assigns saved playlists when
+    `channel_state.json` is available.
 
 ## Configuration Notes
 
 - Local secrets/config files should remain uncommitted: `.env`, `config.json`,
-  `client_secret.json`, `token.json`, `channel_token.json`.
+  `client_secret.json`, `token.json`, `channel_token.json`,
+  `channel_state.json`.
 - `.env` should define at least `OLLAMA_MODEL` and `OLLAMA_URL`.
 - `config.json` controls video size, FPS, max length, caption settings,
   background/music directories, branding text, Piper paths, FFmpeg paths, and
   upload defaults.
-- `upload_youtube.py` currently hardcodes YouTube category `27` even though
-  upload defaults are also present in config/env examples.
+- Upload defaults in `config.json` control category, language, made-for-kids,
+  embeddable, stats visibility, and license fields.
+- `channel_state.json` is account-specific local state. It stores channel ID,
+  playlist IDs, and upload routing copied from `channel_profile.json`; never
+  commit it.
 - The README recommends generating videos as private first, reviewing accuracy,
   voice quality, caption sync, background relevance, and finance claims, then
   publishing manually.
@@ -137,10 +144,16 @@ Upload an existing short:
 python upload_youtube.py --video "outputs/<slug>/short.mp4" --metadata "outputs/<slug>/metadata.json" --privacy private
 ```
 
+Refresh saved playlist IDs after channel setup:
+
+```powershell
+python setup_channel.py --write-state --skip-branding --skip-sections
+```
+
 Run static checks used by CI:
 
 ```powershell
-python -m compileall -q generate_short.py run_pipeline.py upload_youtube.py test_voice.py
+python -m compileall -q generate_short.py run_pipeline.py setup_channel.py upload_youtube.py test_voice.py
 ruff check --output-format=github .
 bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv,./outputs,./voices,./assets/music
 ```
@@ -157,8 +170,18 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   word by word while backgrounds change only between semantic phrase groups.
 - Metadata generation is tuned for YouTube Shorts discovery without keyword
   stuffing: the prompt asks for relevant tags, exactly 3 hashtags, and search
-  keyword phrases; upload code cleans/deduplicates tags and appends missing
-  hashtags to the description.
+  keyword phrases, plus a best-fit playlist when channel playlists are known;
+  upload code cleans/deduplicates tags and appends missing hashtags to the
+  description.
+- Upload playlist routing scores topic/title/description/tags/search
+  keywords/script against `channel_profile.json` rules first, uses a valid
+  generated `playlist` field only when no rule matches, always adds the general
+  `Money Mechanics in 45 Seconds` playlist, and falls back to that default when
+  nothing else matches.
+- `upload_youtube.py` now requests the broader
+  `https://www.googleapis.com/auth/youtube` scope because uploads plus playlist
+  assignment require both video insert and playlist item insert permissions. If
+  an older `token.json` only has upload scope, the next upload opens OAuth again.
 - Script tone should be "professionally simple": credible and slightly more
   expert than generic beginner content, but still clear to a normal adult
   without rewinding.
@@ -274,3 +297,8 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   public playlists, and home tab playlist sections. Channel name, handle,
   profile picture, banner upload, upload defaults, paid promotion disclosures,
   and altered/synthetic disclosures remain manual YouTube Studio steps.
+- Added local playlist-state persistence and upload routing: `.gitignore` now
+  ignores `channel_state.json`, `setup_channel.py` can save real playlist IDs,
+  `channel_profile.json` stores routing rules, `generate_short.py` asks the LLM
+  for a best-fit playlist, and `upload_youtube.py` adds uploaded videos to the
+  resolved playlist(s).

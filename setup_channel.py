@@ -1,5 +1,6 @@
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,6 +12,7 @@ from googleapiclient.discovery import build
 ROOT = Path(__file__).resolve().parent
 SCOPES = ["https://www.googleapis.com/auth/youtube"]
 TOKEN_FILE = ROOT / "channel_token.json"
+CHANNEL_STATE_FILE = ROOT / "channel_state.json"
 DEFAULT_PROFILE = ROOT / "channel_profile.json"
 
 
@@ -42,6 +44,10 @@ def get_credentials(client_secret_path: Path) -> Credentials:
 
 def normalize_title(title: str):
     return " ".join(str(title).split()).casefold()
+
+
+def is_real_playlist_id(playlist_id: str):
+    return playlist_id and not str(playlist_id).startswith("DRY_RUN_")
 
 
 def keywords_to_api_string(keywords):
@@ -194,6 +200,52 @@ def ensure_playlists(youtube, profile, apply_changes: bool):
     return playlist_ids
 
 
+def existing_profile_playlist_ids(youtube, profile):
+    existing = list_playlists(youtube)
+    playlist_ids = {}
+
+    for playlist in profile.get("playlists", []):
+        title = playlist["title"]
+        existing_item = existing.get(normalize_title(title))
+        if existing_item:
+            playlist_ids[title] = existing_item["id"]
+
+    return playlist_ids
+
+
+def write_channel_state(channel, profile, playlist_ids, state_path: Path):
+    real_playlist_ids = {
+        title: playlist_id
+        for title, playlist_id in playlist_ids.items()
+        if is_real_playlist_id(playlist_id)
+    }
+
+    if not real_playlist_ids:
+        print(
+            "\nNo real playlist IDs available for channel_state.json. "
+            "Run setup_channel.py --apply after playlists are created."
+        )
+        return
+
+    state = {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "channel_id": channel["id"],
+        "recommended_channel_name": profile.get("recommended_channel_name"),
+        "recommended_handle": profile.get("recommended_handle"),
+        "default_language": profile.get("default_language", "en"),
+        "country": profile.get("country"),
+        "playlists": real_playlist_ids,
+        "upload_routing": profile.get("upload_routing", {}),
+        "home_sections": profile.get("home_sections", []),
+    }
+
+    state_path.write_text(
+        json.dumps(state, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    print(f"\nSaved playlist routing state to {state_path}.")
+
+
 def list_channel_sections(youtube):
     sections = {}
     response = youtube.channelSections().list(
@@ -256,6 +308,11 @@ def main():
     parser.add_argument("--skip-branding", action="store_true")
     parser.add_argument("--skip-playlists", action="store_true")
     parser.add_argument("--skip-sections", action="store_true")
+    parser.add_argument(
+        "--write-state",
+        action="store_true",
+        help="Save existing playlist IDs to channel_state.json without applying changes.",
+    )
     args = parser.parse_args()
 
     profile_path = Path(args.profile)
@@ -279,9 +336,14 @@ def main():
     playlist_ids = {}
     if not args.skip_playlists:
         playlist_ids = ensure_playlists(youtube, profile, args.apply)
+    elif args.write_state:
+        playlist_ids = existing_profile_playlist_ids(youtube, profile)
 
     if not args.skip_sections:
         ensure_home_sections(youtube, profile, playlist_ids, args.apply)
+
+    if args.apply or args.write_state:
+        write_channel_state(channel, profile, playlist_ids, CHANNEL_STATE_FILE)
 
     print_manual_checklist(profile)
 
