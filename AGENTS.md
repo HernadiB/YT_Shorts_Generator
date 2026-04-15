@@ -163,6 +163,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   for comprehension. Current defaults use Piper `length_scale = 1.12`,
   `sentence_silence = 0.28`, and progressive caption groups capped around 6
   words or 2.8 seconds.
+- Replay strategy: do not make scripts confusing to force replays. The main
+  takeaway should be clear on first watch, while the example, contrast, or final
+  line rewards a second watch and loops back to the opening hook.
 - Preferred positioning is "professional finance explained like a smart friend":
   series concepts include `Money Mechanics in 45 Seconds`, `The Hidden Cost`,
   `Finance Terms That Actually Matter`, `One Chart, One Lesson`, `What This
@@ -252,3 +255,6 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   `run_piper()` passes optional Piper `tts` settings from config, defaults use
   `length_scale = 1.12` and `sentence_silence = 0.28`, and caption groups are
   capped at 6 words or 2.8 seconds.
+- Updated replay/retention prompt guidance: scripts should be clear on first
+  watch, rewarding on second watch, and end by looping the final takeaway back
+  to the opening hook instead of becoming intentionally unclear.

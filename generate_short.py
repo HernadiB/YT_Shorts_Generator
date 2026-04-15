@@ -466,6 +466,9 @@ The script must:
 - sound "professionally simple": credible, but easy for a normal adult to follow
 - use 65 to 78 spoken words
 - keep the first second sharp, then slow the explanation down for comprehension
+- make the main takeaway clear on first watch, but reward a replay with the
+  example, contrast, or final line
+- end by looping back to the opening hook naturally
 - avoid textbook phrasing
 - avoid robotic filler
 - keep attention in the first 2 seconds

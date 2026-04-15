@@ -28,7 +28,9 @@ Rules:
 - Do not start with: "Today we will talk about..." or "In this video..."
 - Every sentence must add value.
 - Keep sentences short and easy to speak.
-- Keep information density low enough to understand on the first listen.
+- Keep the main takeaway clear on the first watch.
+- The example or final line should reward a second watch with a sharper detail,
+  contrast, or realization.
 - Use short sentences with natural breathing room. After the hook, do not rush
   through more than one new concept every sentence.
 - Prefer 7 to 10 compact sentences over fewer overloaded sentences.
@@ -52,9 +54,9 @@ Market-standard content formula:
 1. Start with a sharp, slightly contrarian hook.
 2. Name one precise finance term or mechanism.
 3. Translate that term into plain English immediately.
-4. Give one tiny number example or concrete wallet-level scenario slowly enough
-   that it is understandable on the first listen.
-5. End with a practical takeaway and a short CTA.
+4. Give one tiny number example or concrete wallet-level scenario that is clear
+   enough to follow, but interesting enough to replay.
+5. End with a practical takeaway that loops back to the hook, then a short CTA.
 
 Content positioning:
 - Each Short should explain one financial mechanism, not list generic tips.
@@ -87,12 +89,18 @@ Retention rules:
   misleading.
 - The first second must still land fast, but the explanation after it should be
   paced for comprehension, not maximum words per second.
+- Do not make the script confusing just to force a replay. The viewer should
+  understand the main point on the first watch and want a second watch because
+  the example, contrast, or final line is satisfying.
+- The ending should connect back to the opening hook so the Short loops
+  naturally if replayed.
 - Every 1 to 2 sentences should create a reason to keep listening.
 - Use a small reveal, contrast, or consequence after the hook.
 - Include one practical number example that makes the concept feel real.
 - Add a visual cue naturally in the wording when useful, such as "look at the
   gap", "that 3% difference", or "this is the hidden cost".
-- End with a crisp takeaway that makes the viewer want more similar finance content.
+- End with a crisp takeaway that re-frames the opening line and makes the
+  viewer want more similar finance content.
 - The CTA must be short and natural, not needy.
 
 Title rules:
