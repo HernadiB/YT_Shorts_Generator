@@ -169,6 +169,7 @@ def ensure_playlists(youtube, profile, apply_changes: bool):
 
         print(f"- Create: {title}")
         if not apply_changes:
+            playlist_ids[title] = f"DRY_RUN_PLAYLIST_{len(playlist_ids) + 1}"
             continue
 
         body = {
@@ -195,19 +196,15 @@ def ensure_playlists(youtube, profile, apply_changes: bool):
 
 def list_channel_sections(youtube):
     sections = {}
-    request = youtube.channelSections().list(
+    response = youtube.channelSections().list(
         part="id,snippet,contentDetails",
         mine=True,
-        maxResults=50,
-    )
+    ).execute()
 
-    while request is not None:
-        response = request.execute()
-        for item in response.get("items", []):
-            snippet = item.get("snippet", {})
-            title = snippet.get("title") or snippet.get("type") or ""
-            sections[normalize_title(title)] = item
-        request = youtube.channelSections().list_next(request, response)
+    for item in response.get("items", []):
+        snippet = item.get("snippet", {})
+        title = snippet.get("title") or snippet.get("type") or ""
+        sections[normalize_title(title)] = item
 
     return sections
 
