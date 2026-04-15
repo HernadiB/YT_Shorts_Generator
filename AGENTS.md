@@ -8,6 +8,9 @@ to "Session Log" with the date, changed files, commands run, and unresolved
 questions. Do not include secrets, OAuth tokens, API keys, or generated media.
 For generated code changes, create a focused git commit and push it to the
 current remote branch after verification, unless the user explicitly says not to.
+On this Windows sandbox, plain `git push` can time out with a Git `sh.exe`
+signal pipe error. For pushes, request escalated execution directly instead of
+trying a sandboxed push first.
 
 ## Project Snapshot
 
