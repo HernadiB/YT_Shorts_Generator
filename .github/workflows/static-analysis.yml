@@ -1,6 +1,7 @@
 name: Static analysis
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - development
