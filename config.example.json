@@ -37,6 +37,9 @@
   },
   "upload_defaults": {
     "privacy_status": "private",
+    "category_id": "27",
+    "default_language": "en",
+    "default_audio_language": "en",
     "made_for_kids": false,
     "self_declared_not_made_for_kids": true,
     "license": "youtube",

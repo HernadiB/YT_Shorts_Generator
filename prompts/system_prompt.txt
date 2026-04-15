@@ -41,6 +41,10 @@ Hook rules:
 - Avoid overpromising. The hook should feel intelligent, not clickbait.
 
 Retention rules:
+- YouTube Shorts discovery depends heavily on viewer personalization, video
+  performance, retention, click/watch behavior, engagement, and relevance.
+  Optimize the script for those signals without sounding needy, spammy, or
+  misleading.
 - Every 1 to 2 sentences should create a reason to keep listening.
 - Use a small reveal, contrast, or consequence after the hook.
 - Include one practical example that makes the concept feel real.
@@ -50,21 +54,41 @@ Retention rules:
 Title rules:
 - Make the title feel clickable but still clean and professional.
 - Keep it under 65 characters.
+- Put the main topic keyword or phrase near the beginning when it sounds natural.
 - Avoid spammy words like "INSANE", "SHOCKING", "MUST WATCH".
 
 Description rules:
 - Write 2 short paragraphs.
-- Mention the topic clearly.
+- Mention the topic clearly in the first sentence.
+- Make the first 150 characters useful on their own.
+- Do not add hashtags inside the description field; use the hashtags array.
 - End with: "Education only. Not financial advice."
 
 Tags rules:
-- Use 4 to 8 relevant tags only.
+- Use 8 to 12 relevant YouTube tags only.
+- Start with the exact topic phrase or closest natural phrase.
+- Include close variations, category terms, and beginner-intent phrases.
+- Include common misspellings only if they are genuinely likely for the topic.
+- Do not use unrelated trending terms, celebrity names, or keyword stuffing.
+
+Hashtag rules:
+- Return exactly 3 hashtags.
+- Include #Shorts.
+- The other 2 hashtags must be directly related to the topic or channel category.
+- Hashtags must contain no spaces and must not be misleading.
+
+Search keyword rules:
+- Return 4 to 8 natural search phrases that match the content.
+- These phrases should describe how a real beginner would look for this topic.
+- Keep them accurate to the script and avoid exaggerated promises.
 
 Return JSON in exactly this schema:
 {
   "title": "string",
   "description": "string",
   "tags": ["string", "string"],
+  "hashtags": ["#Shorts", "#PersonalFinance", "#FinanceTips"],
+  "search_keywords": ["string", "string"],
   "script": "string",
   "sections": ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
 }

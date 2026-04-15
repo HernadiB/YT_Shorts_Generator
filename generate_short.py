@@ -18,6 +18,14 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent
 OUTPUTS = ROOT / "outputs"
 PROMPTS = ROOT / "prompts"
+DEFAULT_TAGS = [
+    "personal finance",
+    "finance",
+    "money",
+    "financial education",
+]
+DEFAULT_HASHTAGS = ["#Shorts", "#PersonalFinance", "#FinanceTips"]
+MAX_YOUTUBE_TAG_CHARS = 480
 
 
 def resolve_path(p):
@@ -56,6 +64,7 @@ class Chunk:
     text: str
     start: float
     end: float
+    background_group: int = 0
 
 
 def load_config():
@@ -98,23 +107,129 @@ def normalize(value: Any):
     return str(value).strip()
 
 
-def normalize_tags(value: Any):
+def tag_candidates(value: Any):
     if isinstance(value, list):
-        tags = [normalize(v) for v in value]
-    elif isinstance(value, str):
-        tags = [t.strip() for t in re.split(r",|\|", value) if t.strip()]
-    else:
-        tags = []
+        return [normalize(v) for v in value]
 
+    if isinstance(value, str):
+        return [t.strip() for t in re.split(r",|\|", value) if t.strip()]
+
+    return []
+
+
+def clean_tag(tag: str):
+    tag = normalize(tag).replace("#", "")
+    tag = re.sub(r"\s+", " ", tag).strip(" ,|#")
+    return tag[:60].strip()
+
+
+def keyword_fallbacks(topic: str, title: str = ""):
+    candidates = []
+
+    for value in [topic, title]:
+        value = normalize(value)
+        if not value:
+            continue
+        candidates.extend([
+            value,
+            f"{value} explained",
+            f"{value} for beginners",
+        ])
+
+    candidates.extend(DEFAULT_TAGS)
+    return candidates
+
+
+def normalize_tags(value: Any, fallback=None, max_tags=12):
+    tags = tag_candidates(value)
+    if fallback:
+        tags.extend(fallback)
+
+    if not tags:
+        tags = DEFAULT_TAGS
+
+    total_chars = 0
     cleaned = []
+    seen = set()
+
     for tag in tags:
-        if tag and tag not in cleaned:
-            cleaned.append(tag)
+        tag = clean_tag(tag)
+        key = tag.casefold()
+        if not tag or key in seen:
+            continue
 
-    if not cleaned:
-        cleaned = ["finance", "investing", "money", "education"]
+        next_total = total_chars + len(tag) + (1 if cleaned else 0)
+        if next_total > MAX_YOUTUBE_TAG_CHARS:
+            continue
 
-    return cleaned[:8]
+        cleaned.append(tag)
+        seen.add(key)
+        total_chars = next_total
+
+        if len(cleaned) >= max_tags:
+            break
+
+    return cleaned or DEFAULT_TAGS[:max_tags]
+
+
+def hashtag_from_text(text: str):
+    text = normalize(text)
+    if re.fullmatch(r"#[A-Za-z0-9_]+", text):
+        return text[:51]
+
+    parts = re.findall(r"[A-Za-z0-9]+", text)
+    if not parts:
+        return ""
+
+    pieces = [part if part.isupper() else part.capitalize() for part in parts]
+    return f"#{''.join(pieces)[:50]}"
+
+
+def normalize_hashtags(value: Any, fallback_tags=None):
+    candidates = tag_candidates(value)
+    hashtags = ["#Shorts"]
+    seen = {"#shorts"}
+
+    for candidate in candidates:
+        hashtag = hashtag_from_text(candidate)
+        key = hashtag.casefold()
+        if hashtag and key not in seen:
+            hashtags.append(hashtag)
+            seen.add(key)
+
+    for fallback in DEFAULT_HASHTAGS:
+        key = fallback.casefold()
+        if key not in seen:
+            hashtags.append(fallback)
+            seen.add(key)
+
+    if fallback_tags:
+        for tag in fallback_tags:
+            hashtag = hashtag_from_text(tag)
+            key = hashtag.casefold()
+            if hashtag and key not in seen:
+                hashtags.append(hashtag)
+                seen.add(key)
+
+    return hashtags[:3]
+
+
+def append_hashtags_to_description(description: str, hashtags):
+    description = normalize(description)
+    if not description:
+        description = (
+            "Simple personal finance education for beginners.\n\n"
+            "Education only. Not financial advice."
+        )
+
+    missing = [
+        hashtag for hashtag in hashtags
+        if hashtag.casefold() not in description.casefold()
+    ]
+    if missing:
+        description = f"{description.rstrip()}\n\n{' '.join(missing)}"
+
+    return description
 
 
 def normalize_sections(value: Any):
@@ -158,6 +273,8 @@ Return valid JSON only in this format:
   "title": "string",
   "description": "string",
   "tags": ["string", "string"],
+  "hashtags": ["#Shorts", "#PersonalFinance", "#FinanceTips"],
+  "search_keywords": ["string", "string"],
   "script": "string",
   "sections": ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
 }}
@@ -183,14 +300,33 @@ Return valid JSON only in this format:
     parsed["script"] = normalize(parsed.get("script"))
     parsed["title"] = normalize(parsed.get("title"))
     parsed["description"] = normalize(parsed.get("description"))
-    parsed["tags"] = normalize_tags(parsed.get("tags"))
     parsed["sections"] = normalize_sections(parsed.get("sections"))
 
     if not parsed["title"]:
         parsed["title"] = topic
 
+    fallback_keywords = keyword_fallbacks(topic, parsed["title"])
+    parsed["search_keywords"] = normalize_tags(
+        parsed.get("search_keywords"),
+        fallback=fallback_keywords,
+        max_tags=8,
+    )
+    parsed["tags"] = normalize_tags(
+        tag_candidates(parsed.get("tags")) + parsed["search_keywords"],
+        fallback=fallback_keywords,
+        max_tags=12,
+    )
+    parsed["hashtags"] = normalize_hashtags(
+        parsed.get("hashtags"),
+        fallback_tags=parsed["tags"],
+    )
+
     if not parsed["description"]:
         parsed["description"] = "Simple personal finance education for beginners.\n\nEducation only. Not financial advice."
+    parsed["description"] = append_hashtags_to_description(
+        parsed["description"],
+        parsed["hashtags"],
+    )
 
     if not parsed["script"]:
         raise ValueError("No usable script returned by Ollama.")
@@ -298,7 +434,7 @@ def build_chunks(words, fps, words_per_chunk=1):
         if end <= start:
             end = start + (1 / fps)
 
-        chunks.append(Chunk(text, start, end))
+        chunks.append(Chunk(text, start, end, len(chunks)))
         i += words_per_chunk
 
     return chunks
@@ -329,7 +465,7 @@ def group_semantic_words(words, min_words=3, max_words=8, max_seconds=3.4):
     return groups
 
 
-def chunk_from_word_group(group, fps):
+def chunk_from_word_group(group, fps, background_group=0):
     start = round_to_frame(group[0]["start"], fps)
     end = round_to_frame(group[-1]["end"], fps)
 
@@ -337,14 +473,14 @@ def chunk_from_word_group(group, fps):
         end = start + (1 / fps)
 
     text = " ".join(w["word"] for w in group)
-    return Chunk(text.upper(), start, end)
+    return Chunk(text.upper(), start, end, background_group)
 
 
 def build_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4):
     chunks = []
 
-    for group in group_semantic_words(words, min_words, max_words, max_seconds):
-        chunks.append(chunk_from_word_group(group, fps))
+    for background_group, group in enumerate(group_semantic_words(words, min_words, max_words, max_seconds)):
+        chunks.append(chunk_from_word_group(group, fps, background_group))
 
     return chunks
 
@@ -352,7 +488,7 @@ def build_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4)
 def build_progressive_semantic_chunks(words, fps, min_words=3, max_words=8, max_seconds=3.4):
     chunks = []
 
-    for group in group_semantic_words(words, min_words, max_words, max_seconds):
+    for background_group, group in enumerate(group_semantic_words(words, min_words, max_words, max_seconds)):
         for i in range(len(group)):
             visible_words = group[:i + 1]
             text = " ".join(w["word"] for w in visible_words)
@@ -363,7 +499,7 @@ def build_progressive_semantic_chunks(words, fps, min_words=3, max_words=8, max_
             if end <= start:
                 end = start + (1 / fps)
 
-            chunks.append(Chunk(text.upper(), start, end))
+            chunks.append(Chunk(text.upper(), start, end, background_group))
 
     return chunks
 
@@ -452,7 +588,7 @@ def build_visual_timeline(chunks, audio_duration, fps):
         if end <= start:
             end = start + frame_duration
 
-        timeline.append(Chunk(chunk.text, start, end))
+        timeline.append(Chunk(chunk.text, start, end, chunk.background_group))
 
     return timeline
 
@@ -594,8 +730,9 @@ def build_scenes(chunks, config, wd, slug):
 
     for i, c in enumerate(chunks):
         path = scene_dir / f"s{i}.png"
-        background_path = backgrounds[i % len(backgrounds)] if backgrounds else None
-        make_scene(w, h, c.text, path, background_path, i)
+        background_group = c.background_group
+        background_path = backgrounds[background_group % len(backgrounds)] if backgrounds else None
+        make_scene(w, h, c.text, path, background_path, background_group)
         scenes.append(path)
 
     return scenes
