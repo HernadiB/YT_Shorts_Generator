@@ -150,6 +150,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   stuffing: the prompt asks for relevant tags, exactly 3 hashtags, and search
   keyword phrases; upload code cleans/deduplicates tags and appends missing
   hashtags to the description.
+- Script tone should be "professionally simple": credible and slightly more
+  expert than generic beginner content, but still clear to a normal adult
+  without rewinding.
 - `pick_font()` uses `C:/Windows/Fonts/arialbd.ttf`, so rendering is currently
   Windows-specific.
 - `run_pipeline.py` assumes the latest modified directory under `outputs/` is
@@ -196,3 +199,6 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Added the official YouTube Shorts discovery signal summary to the project
   context: viewer personalization, video performance, retention, click/watch
   behavior, engagement, and relevance.
+- Refined `prompts/system_prompt.txt` tone guidance so generated scripts sound
+  credible and slightly professional for average viewers without becoming
+  academic, bank-like, or overloaded with jargon.
