@@ -20,6 +20,13 @@
     "length_scale": 1.12,
     "sentence_silence": 0.28
   },
+  "quality_gate": {
+    "enabled": true,
+    "max_revision_attempts": 2,
+    "min_script_words": 65,
+    "max_script_words": 85,
+    "fail_on_unresolved_issues": true
+  },
   "music": {
     "library_dir": "assets/music/library",
     "volume": 0.18,

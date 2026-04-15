@@ -235,6 +235,38 @@ Preferred content lanes:
 Avoid get-rich framing, fake urgency, broad motivation, unrelated trend terms,
 and overcomplicated academic explanations.
 
+## Script Quality Gate
+
+The generator runs an LLM quality review before TTS. The review acts as an
+English copy editor and personal finance fact-checker, then rewrites the script
+when needed.
+
+It checks for:
+
+- Grammar, word order, punctuation, sentence fragments, and run-on sentences.
+- Awkward or unclear sentence structure.
+- Misleading finance terminology, guarantees, market-timing claims, and
+  investment advice phrasing.
+- Overloaded sentences that are hard to follow in voiceover.
+- TTS-hostile finance notation such as `$1,000`, `4%`, or `dollar one thousand`
+  in the spoken script.
+
+Default config:
+
+```json
+"quality_gate": {
+  "enabled": true,
+  "max_revision_attempts": 2,
+  "min_script_words": 65,
+  "max_script_words": 85,
+  "fail_on_unresolved_issues": true
+}
+```
+
+If the script still has unresolved quality issues after revision, generation
+fails before voice, captions, or video rendering start. This is intentional:
+bad copy should not become a rendered Short.
+
 ## TTS-Friendly Numbers
 
 The generator normalizes the spoken script before Piper receives it. This avoids

@@ -182,11 +182,14 @@ Channel position:
 
 Rules:
 - Write clean English titles only.
+- Every title must be grammatically correct, natural, and easy to read aloud.
 - Make every title a concrete, slightly contrarian financial statement.
 - The first second must work as a hook, so avoid generic questions.
 - Explain one financial mechanism per title, not a list of tips.
 - Prefer titles that imply a hidden cost, misunderstood mechanism, or surprising
   wallet-level consequence.
+- Avoid malformed finance terms, misleading claims, impossible causality,
+  awkward word order, and sentence fragments.
 - Avoid hype, clickbait, spam, investing guarantees, and duplicate ideas.
 - Prefer topics about inflation, debt, fees, credit scores, ETFs, emergency
   funds, car payments, subscriptions, tax drag, liquidity, risk, compounding,

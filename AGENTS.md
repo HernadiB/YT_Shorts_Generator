@@ -185,6 +185,12 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Script tone should be "professionally simple": credible and slightly more
   expert than generic beginner content, but still clear to a normal adult
   without rewinding.
+- `generate_short.py` has a default-enabled script quality gate. After the
+  first LLM draft, it asks Ollama to act as an English copy editor and finance
+  fact-checker, rewrite weak copy, and approve the result before TTS. A
+  deterministic gate also rejects unresolved grammar/structure, risky finance
+  claims, placeholder text, overloaded sentences, and TTS-hostile finance
+  notation.
 - Content strategy target: 38 to 50 second Shorts, 65 to 78 spoken words, one
   financial mechanism per video, contrarian hook, precise term, plain-English
   translation, tiny number example, practical takeaway, and short CTA.
@@ -302,3 +308,8 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   `channel_profile.json` stores routing rules, `generate_short.py` asks the LLM
   for a best-fit playlist, and `upload_youtube.py` adds uploaded videos to the
   resolved playlist(s).
+- Added script quality gating before TTS: generated metadata is normalized,
+  reviewed by Ollama as an English editor and finance fact-checker, rewritten up
+  to the configured retry limit, and rejected if grammar, sentence structure,
+  risky finance claims, placeholders, overloaded sentences, or spoken-number
+  issues remain.

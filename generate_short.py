@@ -46,12 +46,41 @@ CURRENCY_CODES = {
     "EUR": ("euro", "euros"),
     "GBP": ("pound", "pounds"),
 }
+CURRENCY_WORDS = {
+    "dollar": ("dollar", "dollars"),
+    "dollars": ("dollar", "dollars"),
+    "euro": ("euro", "euros"),
+    "euros": ("euro", "euros"),
+    "pound": ("pound", "pounds"),
+    "pounds": ("pound", "pounds"),
+}
 NUMBER_SUFFIXES = {
     "k": "thousand",
     "m": "million",
     "b": "billion",
     "t": "trillion",
 }
+QUALITY_GATE_DEFAULTS = {
+    "enabled": True,
+    "max_revision_attempts": 2,
+    "min_script_words": 65,
+    "max_script_words": 85,
+    "fail_on_unresolved_issues": True,
+}
+GENERIC_INTRO_PATTERNS = [
+    r"\btoday we (?:will|are going to)\b",
+    r"\bin this video\b",
+    r"\blet'?s talk about\b",
+]
+RISKY_FINANCE_PATTERNS = [
+    r"\bguaranteed returns?\b",
+    r"\brisk[- ]free returns?\b",
+    r"\bcan'?t lose\b",
+    r"\bwill make you rich\b",
+    r"\bshould buy\b",
+    r"\bmust buy\b",
+]
+PLACEHOLDER_PATTERN = r"\b(?:todo|placeholder|insert here|n/a|tbd)\b"
 
 
 def resolve_path(p):
@@ -97,6 +126,26 @@ def load_config():
     load_dotenv(ROOT / ".env")
     with open(ROOT / "config.json", "r", encoding="utf-8-sig") as f:
         return json.load(f)
+
+
+def quality_gate_config(config: dict | None):
+    configured = {}
+    if config:
+        configured = config.get("quality_gate", {}) or {}
+
+    settings = dict(QUALITY_GATE_DEFAULTS)
+    settings.update(configured)
+    settings["max_revision_attempts"] = max(0, int(settings["max_revision_attempts"]))
+    settings["min_script_words"] = max(1, int(settings["min_script_words"]))
+    settings["max_script_words"] = max(
+        settings["min_script_words"],
+        int(settings["max_script_words"]),
+    )
+    settings["enabled"] = bool(settings["enabled"])
+    settings["fail_on_unresolved_issues"] = bool(
+        settings["fail_on_unresolved_issues"]
+    )
+    return settings
 
 
 def load_channel_profile():
@@ -407,6 +456,19 @@ def normalize_spoken_numbers(text: str):
         flags=re.IGNORECASE,
     )
 
+    def replace_misordered_currency_words(match):
+        currency = match.group("currency").lower()
+        amount = match.group("amount")
+        suffix = match.group("suffix") or ""
+        return currency_amount_to_words(amount, CURRENCY_WORDS[currency], suffix)
+
+    text = re.sub(
+        rf"\b(?P<currency>dollars?|euros?|pounds?)\s+(?P<amount>{number})(?:\s*(?P<suffix>[kKmMbBtT]))?\b",
+        replace_misordered_currency_words,
+        text,
+        flags=re.IGNORECASE,
+    )
+
     text = re.sub(r"(?i)\b401\s*\(\s*k\s*\)", "four oh one k", text)
 
     def replace_percent(match):
@@ -420,6 +482,16 @@ def normalize_spoken_numbers(text: str):
     text = re.sub(
         rf"\b(?P<amount>{number})\s+percent\b",
         replace_percent,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    def replace_misordered_percent(match):
+        return f"{amount_to_words(match.group('amount'))} percent"
+
+    text = re.sub(
+        rf"\bpercent\s+(?P<amount>{number})\b",
+        replace_misordered_percent,
         text,
         flags=re.IGNORECASE,
     )
@@ -484,8 +556,320 @@ def normalize_playlist(value: Any, allowed_titles):
     return normalized.get(" ".join(playlist.split()).casefold(), "")
 
 
-def ask_ollama(topic, model, url):
+def request_ollama_json(model, url, prompt):
+    response = requests.post(
+        url,
+        json={
+            "model": model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+        },
+        timeout=300,
+    )
+    response.raise_for_status()
+
+    raw = response.json()["response"]
+    return json.loads(clean_json_response(raw))
+
+
+def script_word_count(script: str):
+    return len(re.findall(r"\b[A-Za-z]+(?:'[A-Za-z]+)?\b", script))
+
+
+def sentence_list(script: str):
+    return [
+        sentence.strip()
+        for sentence in re.findall(r"[^.!?]+[.!?]", script)
+        if sentence.strip()
+    ]
+
+
+def dedupe_issues(issues):
+    if isinstance(issues, str):
+        issues = [issues]
+
+    cleaned = []
+    seen = set()
+
+    for issue in issues:
+        issue = normalize(issue)
+        key = issue.casefold()
+        if not issue or key in {"none", "no issues", "no issue"} or key in seen:
+            continue
+        cleaned.append(issue)
+        seen.add(key)
+
+    return cleaned
+
+
+def normalize_metadata(parsed, topic, playlist_titles):
+    if not isinstance(parsed, dict):
+        raise ValueError("Ollama did not return a JSON object.")
+
+    parsed = dict(parsed)
+    parsed["script"] = normalize(parsed.get("script"))
+    parsed["script"] = normalize_spoken_numbers(parsed["script"])
+    parsed["title"] = normalize(parsed.get("title"))
+    parsed["description"] = normalize(parsed.get("description"))
+    parsed["playlist"] = normalize_playlist(parsed.get("playlist"), playlist_titles)
+    parsed["sections"] = normalize_sections(parsed.get("sections"))
+
+    if not parsed["title"]:
+        parsed["title"] = topic
+
+    fallback_keywords = keyword_fallbacks(topic, parsed["title"])
+    parsed["search_keywords"] = normalize_tags(
+        parsed.get("search_keywords"),
+        fallback=fallback_keywords,
+        max_tags=8,
+    )
+    parsed["tags"] = normalize_tags(
+        tag_candidates(parsed.get("tags")) + parsed["search_keywords"],
+        fallback=fallback_keywords,
+        max_tags=12,
+    )
+    parsed["hashtags"] = normalize_hashtags(
+        parsed.get("hashtags"),
+        fallback_tags=parsed["tags"],
+    )
+
+    if not parsed["description"]:
+        parsed["description"] = (
+            "Simple personal finance education for beginners.\n\n"
+            "Education only. Not financial advice."
+        )
+    parsed["description"] = append_hashtags_to_description(
+        parsed["description"],
+        parsed["hashtags"],
+    )
+
+    if not parsed["script"]:
+        raise ValueError("No usable script returned by Ollama.")
+
+    return parsed
+
+
+def heuristic_quality_issues(meta, settings):
+    script = normalize(meta.get("script"))
+    title = normalize(meta.get("title"))
+    description = normalize(meta.get("description"))
+    issues = []
+
+    if not script:
+        return ["Script is empty."]
+
+    word_count = script_word_count(script)
+    if word_count < settings["min_script_words"]:
+        issues.append(
+            f"Script is too short: {word_count} words; "
+            f"minimum is {settings['min_script_words']}."
+        )
+    if word_count > settings["max_script_words"]:
+        issues.append(
+            f"Script is too long: {word_count} words; "
+            f"maximum is {settings['max_script_words']}."
+        )
+
+    sentences = sentence_list(script)
+    if len(sentences) < 5:
+        issues.append("Script has too few complete sentences.")
+    if len(sentences) > 12:
+        issues.append("Script has too many sentences for the target pacing.")
+
+    for sentence in sentences:
+        sentence_words = script_word_count(sentence)
+        if sentence_words > 22:
+            issues.append(
+                "Script has an overloaded sentence above 22 words; "
+                "split it for clearer narration."
+            )
+            break
+
+    if not re.search(r"[.!?]$", script):
+        issues.append("Script must end with sentence punctuation.")
+
+    if re.search(r"\b([A-Za-z]+)\s+\1\b", script, flags=re.IGNORECASE):
+        issues.append("Script contains an accidental repeated word.")
+
+    searchable_text = f"{title}\n{description}\n{script}"
+    if re.search(PLACEHOLDER_PATTERN, searchable_text, flags=re.IGNORECASE):
+        issues.append("Metadata or script contains placeholder text.")
+
+    for pattern in GENERIC_INTRO_PATTERNS:
+        if re.search(pattern, script, flags=re.IGNORECASE):
+            issues.append("Script starts or reads like a generic video intro.")
+            break
+
+    for pattern in RISKY_FINANCE_PATTERNS:
+        if re.search(pattern, searchable_text, flags=re.IGNORECASE):
+            issues.append("Script or metadata contains a risky finance claim.")
+            break
+
+    if re.search(r"[$€£%]|\b(?:USD|EUR|GBP)\b", script, flags=re.IGNORECASE):
+        issues.append("Spoken script still contains numeric finance symbols.")
+
+    amount_words = (
+        "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|"
+        "twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
+        "nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
+        "ninety|hundred|thousand|million|billion|trillion"
+    )
+    if re.search(
+        rf"\b(?:dollars?|euros?|pounds?)\s+(?:{amount_words})\b",
+        script,
+        flags=re.IGNORECASE,
+    ):
+        issues.append("Script contains a misordered currency phrase.")
+
+    if re.search(rf"\bpercent\s+(?:{amount_words})\b", script, flags=re.IGNORECASE):
+        issues.append("Script contains a misordered percentage phrase.")
+
+    return dedupe_issues(issues)
+
+
+def build_quality_review_prompt(topic, meta, playlist_titles, issues):
+    playlist_guidance = "[]"
+    if playlist_titles:
+        playlist_guidance = json.dumps(playlist_titles, ensure_ascii=False)
+
+    return f"""You are a strict English copy editor and personal finance fact-checker.
+
+Review and rewrite the YouTube Shorts metadata below before it is sent to TTS.
+The final result must be clean, natural English with no grammar, sentence
+structure, terminology, or finance-mechanism mistakes.
+
+Topic:
+{topic}
+
+Allowed playlist titles:
+{playlist_guidance}
+
+Known issues to fix:
+{json.dumps(issues, ensure_ascii=False)}
+
+Current metadata:
+{json.dumps(meta, indent=2, ensure_ascii=False)}
+
+Quality requirements:
+- Fix grammar, word order, punctuation, agreement, awkward phrasing, and
+  sentence fragments.
+- Make every sentence complete, natural, and easy to read aloud.
+- Keep the script professionally simple: precise, but understandable.
+- Do not introduce technical claims that need current market data, tax/legal
+  advice, guarantees, stock picks, or investment recommendations.
+- Correct finance terminology. If a technical term appears, explain it in plain
+  English immediately.
+- Keep one financial mechanism only. Remove side topics that muddy the logic.
+- Keep the hook sharp, but do not use clickbait, fake urgency, or vague hype.
+- Keep the spoken script between 65 and 78 words when possible.
+- Use spoken numbers only in the script, such as "one thousand dollars" and
+  "four percent". Do not write "$1,000", "4%", "USD", or "dollar one thousand"
+  in the script.
+- Preserve the topic and useful SEO metadata.
+- Use one exact playlist title from the allowed list if the list is not empty.
+
+Return valid JSON only in this exact schema:
+{{
+  "approved": true,
+  "issues": ["string"],
+  "title": "string",
+  "description": "string",
+  "tags": ["string", "string"],
+  "hashtags": ["#Shorts", "#PersonalFinance", "#FinanceTips"],
+  "search_keywords": ["string", "string"],
+  "playlist": "string",
+  "script": "string",
+  "sections": ["Hook", "Explanation", "Example", "Why it matters", "CTA"]
+}}
+
+Set approved to true only if your returned version is ready for publication.
+Set issues to an empty array when the returned version has no remaining issue.
+"""
+
+
+def merge_review_metadata(meta, review):
+    merged = dict(meta)
+    for key in [
+        "title",
+        "description",
+        "tags",
+        "hashtags",
+        "search_keywords",
+        "playlist",
+        "script",
+        "sections",
+    ]:
+        if key in review:
+            merged[key] = review[key]
+
+    return merged
+
+
+def apply_quality_gate(meta, topic, model, url, playlist_titles, settings):
+    if not settings["enabled"]:
+        meta["quality_checks"] = {
+            "enabled": False,
+            "passed": True,
+            "issues": [],
+        }
+        return meta
+
+    approved = False
+    review_issues = []
+    attempts = 0
+
+    for attempt in range(settings["max_revision_attempts"]):
+        attempts = attempt + 1
+        issues = heuristic_quality_issues(meta, settings)
+        review_prompt = build_quality_review_prompt(
+            topic,
+            meta,
+            playlist_titles,
+            issues,
+        )
+        review = request_ollama_json(model, url, review_prompt)
+        approved = bool(review.get("approved", False))
+        review_issues = dedupe_issues(review.get("issues", []))
+        meta = normalize_metadata(
+            merge_review_metadata(meta, review),
+            topic,
+            playlist_titles,
+        )
+
+        if approved and not review_issues:
+            post_review_issues = heuristic_quality_issues(meta, settings)
+            if not post_review_issues:
+                meta["quality_checks"] = {
+                    "enabled": True,
+                    "passed": True,
+                    "review_attempts": attempts,
+                    "issues": [],
+                }
+                return meta
+
+    final_issues = heuristic_quality_issues(meta, settings)
+    if attempts and not approved:
+        final_issues.append("LLM quality review did not approve the script.")
+    final_issues.extend(review_issues)
+    final_issues = dedupe_issues(final_issues)
+    meta["quality_checks"] = {
+        "enabled": True,
+        "passed": not final_issues,
+        "review_attempts": attempts,
+        "issues": final_issues,
+    }
+
+    if final_issues and settings["fail_on_unresolved_issues"]:
+        formatted = "\n- ".join(final_issues)
+        raise ValueError(f"Generated script failed the quality gate:\n- {formatted}")
+
+    return meta
+
+
+def ask_ollama(topic, model, url, config=None):
     system_prompt = (PROMPTS / "system_prompt.txt").read_text(encoding="utf-8")
+    quality_settings = quality_gate_config(config)
     profile = load_channel_profile()
     playlist_titles = channel_playlist_titles(profile)
     playlist_guidance = ""
@@ -536,58 +920,16 @@ Return valid JSON only in this format:
 }}
 """
 
-    r = requests.post(
+    parsed = request_ollama_json(model, url, prompt)
+    parsed = normalize_metadata(parsed, topic, playlist_titles)
+    parsed = apply_quality_gate(
+        parsed,
+        topic,
+        model,
         url,
-        json={
-            "model": model,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        },
-        timeout=300
+        playlist_titles,
+        quality_settings,
     )
-
-    r.raise_for_status()
-
-    raw = r.json()["response"]
-    cleaned = clean_json_response(raw)
-    parsed = json.loads(cleaned)
-
-    parsed["script"] = normalize(parsed.get("script"))
-    parsed["script"] = normalize_spoken_numbers(parsed["script"])
-    parsed["title"] = normalize(parsed.get("title"))
-    parsed["description"] = normalize(parsed.get("description"))
-    parsed["playlist"] = normalize_playlist(parsed.get("playlist"), playlist_titles)
-    parsed["sections"] = normalize_sections(parsed.get("sections"))
-
-    if not parsed["title"]:
-        parsed["title"] = topic
-
-    fallback_keywords = keyword_fallbacks(topic, parsed["title"])
-    parsed["search_keywords"] = normalize_tags(
-        parsed.get("search_keywords"),
-        fallback=fallback_keywords,
-        max_tags=8,
-    )
-    parsed["tags"] = normalize_tags(
-        tag_candidates(parsed.get("tags")) + parsed["search_keywords"],
-        fallback=fallback_keywords,
-        max_tags=12,
-    )
-    parsed["hashtags"] = normalize_hashtags(
-        parsed.get("hashtags"),
-        fallback_tags=parsed["tags"],
-    )
-
-    if not parsed["description"]:
-        parsed["description"] = "Simple personal finance education for beginners.\n\nEducation only. Not financial advice."
-    parsed["description"] = append_hashtags_to_description(
-        parsed["description"],
-        parsed["hashtags"],
-    )
-
-    if not parsed["script"]:
-        raise ValueError("No usable script returned by Ollama.")
 
     return parsed
 
@@ -1112,7 +1454,7 @@ def main():
 
     OUTPUTS.mkdir(exist_ok=True)
 
-    meta = ask_ollama(args.topic, model, url)
+    meta = ask_ollama(args.topic, model, url, config)
 
     meta["topic"] = args.topic
 

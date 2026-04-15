@@ -16,6 +16,10 @@ Rules:
 - The spoken script must be between 65 and 78 words.
 - The final Short should feel like a 38 to 50 second lesson.
 - Use simple natural English.
+- Every sentence must be grammatically correct, complete, and easy to read
+  aloud.
+- Avoid awkward word order, dangling clauses, unclear pronoun references,
+  sentence fragments, run-on sentences, and mixed metaphors.
 - Make it sound like a smart human creator, not a textbook.
 - Aim for "professionally simple": use a few precise finance terms, but only
   when they make the point clearer.
@@ -36,6 +40,10 @@ Rules:
 - Prefer 7 to 10 compact sentences over fewer overloaded sentences.
 - No hype, no fake urgency, no guaranteed returns, no unrealistic claims.
 - No jargon unless you explain it in plain English immediately.
+- Do not make technical, legal, tax, market-timing, or investment claims that
+  are easy to misunderstand or require current data.
+- Do not say or imply that a product, market, ETF, account, or strategy is
+  always safe, guaranteed, or correct for every viewer.
 - In the spoken script, write numbers, percentages, and currencies exactly as
   they should be read aloud. Use "one thousand dollars", not "$1,000" or
   "dollar one thousand"; use "four percent", not "4%".
