@@ -1,0 +1,67 @@
+{
+  "project_name": "Finance Shorts Factory",
+  "language": "en",
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "min_seconds": 35,
+    "max_seconds": 60,
+    "captions": {
+      "mode": "progressive",
+      "min_words": 3,
+      "max_words": 6,
+      "max_seconds": 2.8
+    }
+  },
+  "backgrounds": {
+    "image_dir": "assets/backgrounds"
+  },
+  "render": {
+    "tail_padding_seconds": 0.6
+  },
+  "tts": {
+    "length_scale": 1.1,
+    "sentence_silence": 0.24
+  },
+  "quality_gate": {
+    "enabled": true,
+    "max_revision_attempts": 3,
+    "min_script_words": 105,
+    "hard_min_script_words": 95,
+    "max_script_words": 145,
+    "hard_max_script_words": 165,
+    "min_complete_sentences": 4,
+    "fail_on_unresolved_issues": true
+  },
+  "music": {
+    "library_dir": "assets/music/library",
+    "volume": 0.18,
+    "ducking_threshold": 0.03
+  },
+  "branding": {
+    "channel_name": "Your Channel Name",
+    "cta": "Follow for simple money lessons.",
+    "disclaimer": "Education only. Not financial advice.",
+    "accent_words": ["money", "investing", "ETF", "inflation", "debt", "savings"]
+  },
+  "paths": {
+    "piper_exe": "C:/AI/piper/piper.exe",
+    "voice_model": "C:/AI/piper/voices/en_US-lessac-medium.onnx",
+    "voice_config": "C:/AI/piper/voices/en_US-lessac-medium.onnx.json",
+    "ffmpeg": "ffmpeg",
+    "ffprobe": "ffprobe",
+    "client_secret_json": "client_secret.json"
+  },
+  "upload_defaults": {
+    "privacy_status": "private",
+    "category_id": "27",
+    "default_language": "en",
+    "default_audio_language": "en",
+    "made_for_kids": false,
+    "self_declared_not_made_for_kids": true,
+    "license": "youtube",
+    "embeddable": true,
+    "public_stats_viewable": true
+  }
+}

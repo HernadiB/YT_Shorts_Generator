@@ -1,0 +1,35 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+client_secret.json
+token.json
+channel_token.json
+channel_state.json
+config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Generated media and local assets
+outputs/
+voices/
+*.wav
+*.mp3
+*.mp4
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

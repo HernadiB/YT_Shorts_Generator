@@ -1,0 +1,188 @@
+{
+  "recommended_channel_name": "Money Mechanics",
+  "recommended_handle": "@MoneyMechanicsDaily",
+  "banner_headline": "Money Mechanics in 45 Seconds",
+  "banner_subtitle": "Clear finance. No hype. No guarantees.",
+  "description": "Professional finance explained in plain English.\n\nMoney Mechanics breaks down one financial mechanism at a time: inflation, debt, ETFs, fees, credit scores, liquidity, risk, cash flow, and long-term investing basics.\n\nNo hype, no stock picks, no get-rich promises. Just clear explanations of what money decisions actually mean.\n\nVideos are produced with an AI-assisted workflow and reviewed for clarity before publishing.\n\nEducation only. Not financial, investment, tax, or legal advice.",
+  "country": "HU",
+  "default_language": "en",
+  "keywords": [
+    "personal finance",
+    "financial education",
+    "money mechanics",
+    "finance explained",
+    "investing basics",
+    "debt education",
+    "credit score",
+    "inflation",
+    "ETF basics",
+    "cash flow",
+    "financial literacy",
+    "money decisions"
+  ],
+  "default_video_description": "This Short explains a money mechanism in plain English so you can understand what the decision actually means.\n\nEducation only. Not financial, investment, tax, or legal advice.",
+  "pinned_comment_template": "The key idea: understand the mechanism before copying a rule blindly.\n\nWhat money term should I break down next?",
+  "playlists": [
+    {
+      "title": "Start Here",
+      "description": "The clearest starting points for understanding everyday money decisions.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "Money Mechanics in 45 Seconds",
+      "description": "Short explanations of the mechanisms behind common money decisions.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "The Hidden Cost",
+      "description": "Small fees, payments, and habits that quietly change the real cost of money decisions.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "Finance Terms That Actually Matter",
+      "description": "Plain-English breakdowns of finance terms that affect real wallets.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "One Chart, One Lesson",
+      "description": "One visual finance idea at a time.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "Debt and Credit",
+      "description": "Debt, credit scores, interest, payments, and the mechanics behind borrowing.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "Inflation and Cash",
+      "description": "Purchasing power, liquidity, savings accounts, and what cash is really for.",
+      "privacy_status": "public"
+    },
+    {
+      "title": "Investing Basics",
+      "description": "ETFs, diversification, compounding, risk, fees, and long-term investing basics.",
+      "privacy_status": "public"
+    }
+  ],
+  "home_sections": [
+    "Start Here",
+    "Money Mechanics in 45 Seconds",
+    "The Hidden Cost",
+    "Finance Terms That Actually Matter",
+    "One Chart, One Lesson",
+    "Debt and Credit",
+    "Inflation and Cash",
+    "Investing Basics"
+  ],
+  "upload_routing": {
+    "default_playlist": "Money Mechanics in 45 Seconds",
+    "always_add_playlists": [
+      "Money Mechanics in 45 Seconds"
+    ],
+    "rules": [
+      {
+        "playlist": "Debt and Credit",
+        "keywords": [
+          "debt",
+          "credit",
+          "loan",
+          "payment",
+          "interest",
+          "interest curve",
+          "apr",
+          "credit score",
+          "credit card",
+          "minimum payment",
+          "borrow"
+        ]
+      },
+      {
+        "playlist": "Inflation and Cash",
+        "keywords": [
+          "inflation",
+          "cash",
+          "savings",
+          "savings account",
+          "purchasing power",
+          "emergency fund",
+          "liquidity"
+        ]
+      },
+      {
+        "playlist": "Investing Basics",
+        "keywords": [
+          "etf",
+          "index fund",
+          "investing",
+          "investment",
+          "diversification",
+          "compound",
+          "compounding",
+          "stock market",
+          "risk",
+          "fund",
+          "portfolio"
+        ]
+      },
+      {
+        "playlist": "The Hidden Cost",
+        "keywords": [
+          "hidden cost",
+          "fee",
+          "fees",
+          "tax drag",
+          "subscription",
+          "car payment",
+          "low monthly",
+          "rewards",
+          "cashback",
+          "cost"
+        ]
+      },
+      {
+        "playlist": "Finance Terms That Actually Matter",
+        "keywords": [
+          "term",
+          "means",
+          "liquidity",
+          "risk",
+          "cash flow",
+          "time horizon",
+          "opportunity cost"
+        ]
+      },
+      {
+        "playlist": "One Chart, One Lesson",
+        "keywords": [
+          "chart",
+          "curve",
+          "gap",
+          "line",
+          "visual",
+          "one chart"
+        ]
+      },
+      {
+        "playlist": "Start Here",
+        "keywords": [
+          "budget",
+          "beginner",
+          "basics",
+          "emergency fund",
+          "start",
+          "simple"
+        ]
+      }
+    ]
+  },
+  "manual_studio_checklist": [
+    "Set channel name to Money Mechanics if you want the recommended positioning.",
+    "Set handle to @MoneyMechanicsDaily if available.",
+    "Upload a clean profile icon with initials or a simple chart/wallet mark.",
+    "Upload a banner using the headline and subtitle above.",
+    "Set upload defaults description to default_video_description.",
+    "Use the paid promotion checkbox whenever a video has a sponsor, affiliate relationship, or endorsement.",
+    "Use YouTube's altered/synthetic disclosure if a realistic AI-generated scene, person, or event could mislead viewers.",
+    "Avoid luxury, get-rich, stock-pick, and guaranteed-return branding."
+  ]
+}
