@@ -9,6 +9,7 @@ import os
 import ctypes
 import uuid
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
@@ -62,9 +63,29 @@ NUMBER_SUFFIXES = {
     "b": "billion",
     "t": "trillion",
 }
+NUMBER_WORD_VALUES = {
+    word: value for value, word in enumerate(NUMBER_WORDS_ONES)
+}
+NUMBER_WORD_VALUES.update({
+    word: value * 10
+    for value, word in enumerate(NUMBER_WORDS_TENS)
+    if word
+})
+NUMBER_SCALE_WORDS = {
+    "hundred": 100,
+    "thousand": 1000,
+    "million": 1_000_000,
+    "billion": 1_000_000_000,
+    "trillion": 1_000_000_000_000,
+}
+NUMBER_LARGE_SCALE_WORDS = {
+    key: value for key, value in NUMBER_SCALE_WORDS.items()
+    if key != "hundred"
+}
+NUMBER_PARSE_IGNORED_WORDS = {"and"}
 QUALITY_GATE_DEFAULTS = {
     "enabled": True,
-    "max_revision_attempts": 2,
+    "max_revision_attempts": 3,
     "min_script_words": 65,
     "hard_min_script_words": 58,
     "max_script_words": 85,
@@ -84,6 +105,12 @@ RISKY_FINANCE_PATTERNS = [
     r"\bwill make you rich\b",
     r"\bshould buy\b",
     r"\bmust buy\b",
+]
+CURRENT_DATA_FINANCE_PATTERNS = [
+    r"\baverage\s+(?:credit card|mortgage|loan|savings|market)\s+rate\b",
+    r"\bcurrent\s+(?:credit card|mortgage|loan|savings|market)\s+rate\b",
+    r"\btoday'?s\s+(?:credit card|mortgage|loan|savings|market)\s+rate\b",
+    r"\btriple\s+the\s+average\b",
 ]
 PLACEHOLDER_PATTERN = r"\b(?:todo|placeholder|insert here|n/a|tbd)\b"
 TEXT_ARTIFACT_REPLACEMENTS = {
@@ -108,6 +135,11 @@ AMOUNT_WORD_PATTERN = (
     "twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
     "nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
     "ninety|hundred|thousand|million|billion|trillion"
+)
+SPOKEN_NUMBER_WORD_PATTERN = f"{AMOUNT_WORD_PATTERN}|and|point"
+SPOKEN_NUMBER_PHRASE_PATTERN = (
+    rf"(?:{SPOKEN_NUMBER_WORD_PATTERN})"
+    rf"(?:[\s-]+(?:{SPOKEN_NUMBER_WORD_PATTERN}))*"
 )
 SCRIPT_EXPANSION_SENTENCES = [
     "The real lesson is simple.",
@@ -604,7 +636,8 @@ def repair_currency_adjective_phrases(text: str):
     noun_pattern = (
         "emergency fund|savings account|credit card balance|loan payment|"
         "monthly payment|investment account|cash reserve|budget gap|"
-        "repair bill|medical bill|expense|fee|cost|payment|balance|fund"
+        "repair bill|medical bill|expense|fee|cost|payment|balance|loan|"
+        "debt|principal|fund"
     )
     return re.sub(
         rf"\b(?P<article>[Aa]n?)\s+"
@@ -720,6 +753,235 @@ def dedupe_issues(issues):
         seen.add(key)
 
     return cleaned
+
+
+def parse_integer_words(tokens):
+    total = 0
+    current = 0
+    seen_number = False
+
+    for token in tokens:
+        token = token.casefold()
+        if token in NUMBER_PARSE_IGNORED_WORDS:
+            continue
+
+        if re.fullmatch(r"\d+", token):
+            current += int(token)
+            seen_number = True
+            continue
+
+        if token in NUMBER_WORD_VALUES:
+            current += NUMBER_WORD_VALUES[token]
+            seen_number = True
+            continue
+
+        if token == "hundred":
+            current = max(1, current) * NUMBER_SCALE_WORDS[token]
+            seen_number = True
+            continue
+
+        if token in NUMBER_LARGE_SCALE_WORDS:
+            current = max(1, current)
+            total += current * NUMBER_LARGE_SCALE_WORDS[token]
+            current = 0
+            seen_number = True
+            continue
+
+        return None
+
+    if not seen_number:
+        return None
+
+    return total + current
+
+
+def parse_spoken_number(text: str):
+    text = normalize(text).casefold()
+    tokens = re.findall(r"[a-z]+|\d+(?:\.\d+)?", text)
+    tokens = [token for token in tokens if token not in NUMBER_PARSE_IGNORED_WORDS]
+
+    if not tokens:
+        return None
+
+    if len(tokens) == 1 and re.fullmatch(r"\d+(?:\.\d+)?", tokens[0]):
+        return float(tokens[0])
+
+    if "point" not in tokens:
+        return parse_integer_words(tokens)
+
+    point_index = tokens.index("point")
+    whole_tokens = tokens[:point_index]
+    decimal_tokens = tokens[point_index + 1:]
+    scale = 1
+
+    if decimal_tokens and decimal_tokens[-1] in NUMBER_LARGE_SCALE_WORDS:
+        scale = NUMBER_LARGE_SCALE_WORDS[decimal_tokens[-1]]
+        decimal_tokens = decimal_tokens[:-1]
+
+    whole = parse_integer_words(whole_tokens)
+    if whole is None or not decimal_tokens:
+        return None
+
+    decimal_digits = []
+    for token in decimal_tokens:
+        if re.fullmatch(r"\d+", token):
+            decimal_digits.extend(token)
+            continue
+        if token in NUMBER_WORD_VALUES and NUMBER_WORD_VALUES[token] < 10:
+            decimal_digits.append(str(NUMBER_WORD_VALUES[token]))
+            continue
+        return None
+
+    return (whole + float(f"0.{''.join(decimal_digits)}")) * scale
+
+
+def number_group(name):
+    return rf"(?<![A-Za-z-])(?P<{name}>{SPOKEN_NUMBER_PHRASE_PATTERN})"
+
+
+def money_group(name):
+    return rf"{number_group(name)}\s+(?:dollars?|euros?|pounds?)"
+
+
+def extract_first_number(text, patterns, group_name="amount"):
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+
+        value = parse_spoken_number(match.group(group_name))
+        if value is not None:
+            return value
+
+    return None
+
+
+def extract_loan_term_months(text):
+    patterns = [
+        rf"\b(?:over|for)\s+{number_group('term')}[\s-]+(?P<unit>years?|months?)\b",
+        rf"\b{number_group('term')}[\s-]+(?P<unit>years?|months?)[\s-]+(?:loan|debt|term|schedule)\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+
+        value = parse_spoken_number(match.group("term"))
+        if value is None or value <= 0:
+            continue
+
+        unit = match.group("unit").casefold()
+        if unit.startswith("year"):
+            return int(round(value * 12))
+        return int(round(value))
+
+    return None
+
+
+def amortized_loan_payment(principal, apr_percent, months):
+    if principal <= 0 or months <= 0 or apr_percent < 0:
+        return None
+
+    monthly_rate = apr_percent / 100 / 12
+    if monthly_rate == 0:
+        return principal / months
+
+    return principal * monthly_rate / (1 - (1 + monthly_rate) ** -months)
+
+
+def format_money_value(value):
+    if abs(value) >= 100:
+        return f"${value:,.0f}"
+    return f"${value:,.2f}"
+
+
+def loan_math_issues(script: str):
+    text = clean_text_artifacts(script).casefold()
+    if not re.search(
+        r"\b(?:loan|debt|principal|apr|interest rate|monthly payment)\b",
+        text,
+    ):
+        return []
+
+    principal = extract_first_number(text, [
+        rf"\b(?:loan|balance|debt|principal)\s+of\s+{money_group('amount')}",
+        rf"\b{money_group('amount')}\s+(?:loan|balance|debt|principal)\b",
+        rf"\bborrow(?:ed|ing)?\s+{money_group('amount')}\b",
+    ])
+    apr = extract_first_number(text, [
+        rf"\bannual\s+percentage\s+rate\b[^.!?]{{0,90}}\b{number_group('amount')}\s+percent\b",
+        rf"\bapr\s+of\s+{number_group('amount')}\s+percent\b",
+        rf"\b{number_group('amount')}\s+percent\s+apr\b",
+        rf"\binterest\s+rate\s+of\s+{number_group('amount')}\s+percent\b",
+        rf"\bat\s+{number_group('amount')}\s+percent\s+(?:apr|interest)\b",
+        rf"\b{number_group('amount')}\s+percent\s+interest\b",
+    ])
+    monthly_payment = extract_first_number(text, [
+        rf"\bmonthly\s+payment\s+of\s+(?:only\s+)?{money_group('amount')}",
+        rf"\bpayment\s+of\s+(?:only\s+)?{money_group('amount')}\s+(?:a\s+month|per\s+month|monthly)\b",
+        rf"\b{money_group('amount')}\s+(?:a\s+month|per\s+month|monthly)\b",
+    ])
+    stated_interest = extract_first_number(text, [
+        rf"\b{money_group('amount')}\s+in\s+interest\b",
+        rf"\binterest\s+of\s+{money_group('amount')}\b",
+        rf"\bpay(?:ing)?\s+{money_group('amount')}\s+interest\b",
+        rf"\bpay\s+(?:over\s+|about\s+)?{money_group('amount')}\s+more\s+than\s+the\s+principal(?:\s+amount)?\b",
+        rf"\b(?:over\s+|about\s+)?{money_group('amount')}\s+more\s+than\s+the\s+principal(?:\s+amount)?\b",
+    ])
+    term_months = extract_loan_term_months(text)
+
+    if (
+        principal is not None
+        and apr is not None
+        and term_months is None
+        and (monthly_payment is not None or stated_interest is not None)
+    ):
+        return [
+            "Loan math incomplete: APR, payment, or total-interest examples "
+            "need a loan term, or the example should stay qualitative."
+        ]
+
+    if principal is None or apr is None or term_months is None:
+        return []
+
+    expected_payment = amortized_loan_payment(principal, apr, term_months)
+    if expected_payment is None:
+        return []
+
+    expected_interest = expected_payment * term_months - principal
+    details = []
+
+    if monthly_payment is not None:
+        total_stated_payments = monthly_payment * term_months
+        if total_stated_payments < principal:
+            details.append(
+                "stated payments total "
+                f"{format_money_value(total_stated_payments)}, below the "
+                f"{format_money_value(principal)} principal"
+            )
+
+        tolerance = max(5, expected_payment * 0.05)
+        if abs(monthly_payment - expected_payment) > tolerance:
+            details.append(
+                "monthly payment should be about "
+                f"{format_money_value(expected_payment)}, not "
+                f"{format_money_value(monthly_payment)}"
+            )
+
+    if stated_interest is not None:
+        tolerance = max(75, abs(expected_interest) * 0.10)
+        if abs(stated_interest - expected_interest) > tolerance:
+            details.append(
+                "total interest should be about "
+                f"{format_money_value(expected_interest)}, not "
+                f"{format_money_value(stated_interest)}"
+            )
+
+    if not details:
+        return []
+
+    return [f"Loan math inconsistent: {'; '.join(details)}."]
 
 
 def normalize_metadata(parsed, topic, playlist_titles):
@@ -842,6 +1104,16 @@ def heuristic_quality_issues(meta, settings):
             issues.append("Script or metadata contains a risky finance claim.")
             break
 
+    for pattern in CURRENT_DATA_FINANCE_PATTERNS:
+        if re.search(pattern, searchable_text, flags=re.IGNORECASE):
+            issues.append(
+                "Script or metadata contains a finance claim that needs "
+                "current market data."
+            )
+            break
+
+    issues.extend(loan_math_issues(script))
+
     if re.search(r"[$€£%]|\b(?:USD|EUR|GBP)\b", script, flags=re.IGNORECASE):
         issues.append("Spoken script still contains numeric finance symbols.")
 
@@ -862,7 +1134,7 @@ def heuristic_quality_issues(meta, settings):
     if re.search(
         rf"\b[Aa]n?\s+(?:(?:{AMOUNT_WORD_PATTERN})\s+)+"
         r"(?:dollars?|euros?|pounds?)\s+"
-        r"(?:fund|payment|account|balance|expense|fee|cost|bill)\b",
+        r"(?:fund|payment|account|balance|loan|debt|principal|expense|fee|cost|bill)\b",
         script,
         flags=re.IGNORECASE,
     ):
@@ -968,6 +1240,15 @@ Quality requirements:
 - Keep the script professionally simple: precise, but understandable.
 - Do not introduce technical claims that need current market data, tax/legal
   advice, guarantees, stock picks, or investment recommendations.
+- Every economic claim must be logically true, mathematically consistent, and
+  financially coherent in the context given.
+- Do not invent background facts, market averages, typical rates, hidden fees,
+  or historical performance. Use them only when the original metadata already
+  provided them.
+- If a claim needs missing background information, either include the needed
+  assumption in plain English or make the example qualitative.
+- Use causality carefully. Do not say one finance variable causes another unless
+  that mechanism is actually explained in the script.
 - Correct finance terminology. If a technical term appears, explain it in plain
   English immediately.
 - Keep one financial mechanism only. Remove side topics that muddy the logic.
@@ -978,6 +1259,12 @@ Quality requirements:
 - Use spoken numbers only in the script, such as "one thousand dollars" and
   "four percent". Do not write "$1,000", "4%", "USD", or "dollar one thousand"
   in the script.
+- If you use a loan, APR, monthly payment, term, or total-interest example,
+  make the amortization math internally consistent. If you cannot verify the
+  math, use a qualitative wallet-level example instead.
+- If you state a total interest amount for a loan, include the loan term.
+- Do not combine principal, APR, term, monthly payment, and total interest
+  unless all figures can be true at the same time.
 - Do not use broken currency adjectives. Write "an emergency fund of one
   thousand dollars", not "a one thousand dollars emergency fund".
 - Use plural currency units after any amount other than exactly "one": "one
@@ -1069,20 +1356,22 @@ def apply_quality_gate(meta, topic, model, url, playlist_titles, settings):
 
     meta = repair_short_script(meta, settings)
     final_issues = heuristic_quality_issues(meta, settings)
+    review_warnings = []
     if attempts and not approved:
-        final_issues.append("LLM quality review did not approve the script.")
-    final_issues.extend(review_issues)
+        review_warnings.append("LLM quality review did not approve the script.")
+    review_warnings.extend(review_issues)
     final_issues = dedupe_issues(final_issues)
     blocking_issues = blocking_quality_issues(final_issues)
+    warnings = dedupe_issues([
+        issue for issue in final_issues
+        if issue not in blocking_issues
+    ] + review_warnings)
     meta["quality_checks"] = {
         "enabled": True,
         "passed": not blocking_issues,
         "review_attempts": attempts,
         "issues": blocking_issues,
-        "warnings": [
-            issue for issue in final_issues
-            if issue not in blocking_issues
-        ],
+        "warnings": warnings,
     }
 
     if blocking_issues and settings["fail_on_unresolved_issues"]:
@@ -1128,8 +1417,12 @@ The script must:
 - explain one concept clearly
 - explain one finance mechanism, not a list of generic tips
 - include one tiny number example or concrete wallet-level scenario
+- make every economic claim logically true and financially coherent
+- avoid invented background facts, market averages, typical rates, and
+  historical performance unless they are included in the topic
 - name one precise finance term only if it is translated into plain English
 - write numbers, percentages, and currencies exactly as they should be spoken
+- keep any loan, APR, payment, term, and interest figures internally consistent
 - end with a short CTA
 
 Return valid JSON only in this format:
@@ -1228,7 +1521,73 @@ def round_to_frame(t, fps):
     return round(t * fps) / fps
 
 
-def transcribe_words(audio_path: Path):
+def script_caption_tokens(script_text: str):
+    return re.findall(
+        r"[A-Za-z0-9]+(?:'[A-Za-z0-9]+)?[.,!?;:]?",
+        normalize(script_text),
+    )
+
+
+def caption_token_key(token: str):
+    return re.sub(r"[^a-z0-9]+", "", normalize(token).casefold())
+
+
+def align_transcript_words_to_script(words, script_text: str):
+    script_tokens = [
+        token for token in script_caption_tokens(script_text)
+        if caption_token_key(token)
+    ]
+    transcript_keys = [
+        caption_token_key(word.get("word", ""))
+        for word in words
+    ]
+    script_keys = [caption_token_key(token) for token in script_tokens]
+
+    if not words or not script_tokens:
+        return words
+
+    matcher = SequenceMatcher(
+        None,
+        transcript_keys,
+        script_keys,
+        autojunk=False,
+    )
+
+    if matcher.ratio() < 0.62 and abs(len(transcript_keys) - len(script_keys)) > 6:
+        return words
+
+    aligned_words = [dict(word) for word in words]
+
+    for tag, word_start, word_end, script_start, script_end in matcher.get_opcodes():
+        if tag == "delete":
+            continue
+
+        if tag == "insert":
+            inserted_tokens = script_tokens[script_start:script_end]
+            if word_start > 0 and 0 < len(inserted_tokens) <= 2:
+                target = aligned_words[word_start - 1]
+                inserted = " ".join(inserted_tokens)
+                target["word"] = f"{target['word']} {inserted}".strip()
+            continue
+
+        replace_count = min(word_end - word_start, script_end - script_start)
+        for offset in range(replace_count):
+            target = aligned_words[word_start + offset]
+            replacement = script_tokens[script_start + offset]
+            if caption_token_key(target.get("word", "")) != caption_token_key(replacement):
+                target["transcribed_word"] = target.get("word", "")
+            target["word"] = replacement
+
+        if tag == "replace" and script_end - script_start > replace_count:
+            extras = script_tokens[script_start + replace_count:script_end]
+            if 0 < len(extras) <= 2 and word_start + replace_count - 1 >= 0:
+                target = aligned_words[word_start + replace_count - 1]
+                target["word"] = f"{target['word']} {' '.join(extras)}".strip()
+
+    return aligned_words
+
+
+def transcribe_words(audio_path: Path, script_text: str = ""):
     device = "cpu"
     audio = whisperx.load_audio(str(audio_path))
 
@@ -1264,6 +1623,9 @@ def transcribe_words(audio_path: Path):
 
     if not words:
         raise ValueError("WhisperX returned no word timings.")
+
+    if script_text:
+        words = align_transcript_words_to_script(words, script_text)
 
     return words
 
@@ -1420,7 +1782,20 @@ def get_audio_duration(audio_path: Path, config: dict) -> float:
 
 
 def validate_audio_duration(audio_duration: float, config: dict):
-    max_seconds = config.get("video", {}).get("max_seconds")
+    video_config = config.get("video", {})
+    min_seconds = video_config.get("min_seconds")
+    max_seconds = video_config.get("max_seconds")
+
+    if min_seconds:
+        min_seconds = float(min_seconds)
+        if audio_duration < min_seconds:
+            raise ValueError(
+                f"Generated voice is {audio_duration:.1f}s, below the configured "
+                f"{min_seconds:.1f}s finance pacing floor. Regenerate with a "
+                "longer script, increase tts.length_scale, or lower "
+                "video.min_seconds in config.json."
+            )
+
     if not max_seconds:
         return
 
@@ -1714,7 +2089,7 @@ def main():
     fps = config["video"]["fps"]
     audio_duration = get_audio_duration(wav, config)
     validate_audio_duration(audio_duration, config)
-    words = transcribe_words(wav)
+    words = transcribe_words(wav, script)
     chunks = build_caption_chunks(words, fps, config)
     timeline = build_visual_timeline(chunks, audio_duration, fps)
     write_caption_timing(words, chunks, timeline, wd / "caption_timing.json")

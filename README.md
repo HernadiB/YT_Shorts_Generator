@@ -162,6 +162,7 @@ Important fields:
     "width": 1080,
     "height": 1920,
     "fps": 30,
+    "min_seconds": 35,
     "max_seconds": 50,
     "captions": {
       "mode": "progressive",
@@ -174,8 +175,8 @@ Important fields:
     "image_dir": "assets/backgrounds"
   },
   "tts": {
-    "length_scale": 1.12,
-    "sentence_silence": 0.28
+    "length_scale": 2.0,
+    "sentence_silence": 0.4
   },
   "paths": {
     "piper_exe": "C:/AI/piper/piper.exe",
@@ -188,9 +189,9 @@ Important fields:
 }
 ```
 
-`max_seconds` is a hard quality guard for the generated voice duration. The
-current content target is a 38 to 50 second Short, which usually means a script
-around 65 to 78 spoken words with a slightly slower Piper pace.
+`min_seconds` and `max_seconds` are hard quality guards for the generated voice
+duration. The current content target is a 35 to 50 second Short, which usually
+means a script around 65 to 78 spoken words with a slower Piper pace.
 
 Recommended Piper voices:
 
@@ -211,7 +212,7 @@ education market without copying generic "money hacks" content.
 
 Target format:
 
-- Length: 38 to 50 seconds.
+- Length: 35 to 50 seconds.
 - Script: 65 to 78 spoken words.
 - Pace: fast first-second hook, then slower explanation with natural breathing
   room. The goal is retention through comprehension, not maximum information
@@ -247,6 +248,9 @@ It checks for:
 - Awkward or unclear sentence structure.
 - Misleading finance terminology, guarantees, market-timing claims, and
   investment advice phrasing.
+- Claims that require current rate or market data.
+- Economic claims that are not logically, mathematically, or financially
+  coherent from the information in the script.
 - Overloaded sentences that are hard to follow in voiceover.
 - TTS-hostile finance notation such as `$1,000`, `4%`, or `dollar one thousand`
   in the spoken script.
@@ -256,7 +260,7 @@ Default config:
 ```json
 "quality_gate": {
   "enabled": true,
-  "max_revision_attempts": 2,
+  "max_revision_attempts": 3,
   "min_script_words": 65,
   "hard_min_script_words": 58,
   "max_script_words": 85,
@@ -270,9 +274,10 @@ Minor length or pacing drift becomes a warning, not a hard failure. For example,
 a clean 62-word script can continue. If a review accidentally returns a script
 below the hard minimum, the generator appends safe finance-context closing
 sentences and checks it again. Grammar problems, broken sentence structure,
-risky finance claims, placeholders, and TTS-hostile finance notation still fail
-before voice, captions, or video rendering start. This is intentional: bad copy
-should not become a rendered Short.
+risky finance claims, current-data finance claims, placeholders, TTS-hostile
+finance notation, and inconsistent loan math still fail before voice, captions,
+or video rendering start. LLM review notes are retained as warnings unless the
+deterministic gate also finds a blocking issue.
 
 ## TTS-Friendly Numbers
 
@@ -291,6 +296,21 @@ The prompt also asks the LLM to write numbers, currencies, and percentages in
 spoken form inside the script. Symbols can still appear in titles, tags, and
 metadata when useful.
 
+## Finance Math Guardrails
+
+The quality gate includes a deterministic check for loan examples. When a
+script combines loan principal, APR, term, monthly payment, or total interest,
+the generator estimates the amortized payment and total interest before TTS.
+
+This catches examples where the story sounds plausible but the numbers cannot
+all be true at the same time, such as a payment schedule that does not even
+repay the principal. If the math is inconsistent, generation fails before
+voice, captions, or rendering start.
+
+If a script states a loan's principal, APR, and total interest without a term,
+the gate also fails it. That example is under-specified, so the script must add
+the term or stay qualitative.
+
 ## Video Generation Commands
 
 ### Generate a video from a specific topic
@@ -305,7 +325,9 @@ What happens:
 
 - Ollama writes the title, description, tags, sections, and script.
 - Piper turns the script into `voice.wav`.
-- WhisperX creates word timings for caption sync.
+- WhisperX creates word timings for caption sync, then caption text is aligned
+  back to the approved script so recognition slips do not change the displayed
+  words.
 - The renderer creates scene images and the final vertical `short.mp4`.
 - Nothing is uploaded to YouTube unless `--upload` is also used.
 
@@ -503,6 +525,11 @@ If no matching background images exist, the renderer generates finance-themed ch
 ## Captions and Sync
 
 Captions are built from WhisperX word timings. The default mode is progressive semantic captioning:
+
+After WhisperX returns timings, the generator aligns the recognized words back
+to the approved script text. The timings still come from the audio, but the
+visible captions follow the script. This prevents small ASR mistakes, such as
+confusing "low" with "loan", from becoming visible in the final Short.
 
 ```json
 "captions": {

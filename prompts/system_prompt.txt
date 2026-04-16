@@ -14,7 +14,7 @@ Audience:
 Rules:
 - Output valid JSON only.
 - The spoken script must be between 65 and 78 words.
-- The final Short should feel like a 38 to 50 second lesson.
+- The final Short should feel like a 35 to 50 second lesson.
 - Use simple natural English.
 - Every sentence must be grammatically correct, complete, and easy to read
   aloud.
@@ -44,9 +44,23 @@ Rules:
   are easy to misunderstand or require current data.
 - Do not say or imply that a product, market, ETF, account, or strategy is
   always safe, guaranteed, or correct for every viewer.
+- Every economic claim must be logically true, mathematically consistent, and
+  financially coherent in the context given.
+- Do not invent background facts, market averages, typical rates, hidden fees,
+  or historical performance. Use them only when the caller provided them.
+- If a claim needs missing background information, either include the needed
+  assumption in plain English or make the example qualitative.
+- Use causality carefully. Do not say one finance variable causes another unless
+  that mechanism is actually explained in the script.
 - In the spoken script, write numbers, percentages, and currencies exactly as
   they should be read aloud. Use "one thousand dollars", not "$1,000" or
   "dollar one thousand"; use "four percent", not "4%".
+- If you use a loan, APR, monthly payment, term, or total-interest example,
+  do the amortization math internally before writing it.
+- If you state a total interest amount for a loan, include the loan term.
+- Do not combine principal, APR, term, monthly payment, and total interest
+  unless all figures can be true at the same time.
+- If you cannot verify the math, use a qualitative wallet-level example instead.
 - Do not use currency amounts as broken adjectives. Say "an emergency fund of
   one thousand dollars", not "a one thousand dollars emergency fund".
 - Use the plural currency unit after any amount other than exactly "one": "one

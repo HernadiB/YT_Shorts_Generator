@@ -189,18 +189,19 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   first LLM draft, it asks Ollama to act as an English copy editor and finance
   fact-checker, rewrite weak copy, and approve the result before TTS. A
   deterministic gate also rejects unresolved grammar/structure, risky finance
-  claims, placeholder text, overloaded sentences, and TTS-hostile finance
-  notation. Minor length or pacing drift is stored as a warning so a clean
-  60-ish-word script does not block the pipeline. If the review returns a script
+  claims, current-data finance claims, placeholder text, overloaded sentences,
+  TTS-hostile finance notation, and inconsistent loan/APR/payment math. Minor
+  length, pacing drift, and LLM review notes are stored as warnings when the
+  deterministic gate finds no blocking issue. If the review returns a script
   below the hard minimum, the generator appends safe finance-context closing
   sentences before the final gate.
-- Content strategy target: 38 to 50 second Shorts, 65 to 78 spoken words, one
+- Content strategy target: 35 to 50 second Shorts, 65 to 78 spoken words, one
   financial mechanism per video, contrarian hook, precise term, plain-English
   translation, tiny number example, practical takeaway, and short CTA.
 - Pacing strategy: keep the first-second hook sharp, then slow the explanation
-  for comprehension. Current defaults use Piper `length_scale = 1.12`,
-  `sentence_silence = 0.28`, and progressive caption groups capped around 6
-  words or 2.8 seconds.
+  for comprehension. Current defaults use `video.min_seconds = 35`, Piper
+  `length_scale = 2.0`, `sentence_silence = 0.4`, and progressive caption
+  groups capped around 6 words or 2.8 seconds.
 - Replay strategy: do not make scripts confusing to force replays. The main
   takeaway should be clear on first watch, while the example, contrast, or final
   line rewards a second watch and loops back to the opening hook.
@@ -215,6 +216,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Spoken script text is normalized before TTS so finance notation reads
   naturally: `$1,000` -> `one thousand dollars`, `4%` -> `four percent`,
   `$1.50` -> `one dollar and fifty cents`, and `401(k)` -> `four oh one k`.
+- WhisperX supplies caption timings, but caption text is aligned back to the
+  approved script before chunking. This keeps visible captions from inheriting
+  ASR slips such as `low` becoming `loan`.
 - `pick_font()` uses `C:/Windows/Fonts/arialbd.ttf`, so rendering is currently
   Windows-specific.
 - `run_pipeline.py` assumes the latest modified directory under `outputs/` is
@@ -276,9 +280,10 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   tiny number example, and practical takeaway.
 - Updated `README.md` with the content standard and preferred content lanes.
 - Updated `config.example.json` and local ignored `config.json` to use
-  `video.max_seconds = 50`.
+  `video.min_seconds = 35` and `video.max_seconds = 50`.
 - Updated `generate_short.py` to validate generated voice duration against
-  `video.max_seconds` before WhisperX/rendering, so overlong scripts fail fast.
+  `video.min_seconds` and `video.max_seconds` before WhisperX/rendering, so
+  pacing outliers fail fast.
 - Added TTS-friendly spoken number normalization for the generated script:
   currency symbols/codes, percentages, compact magnitudes, plain numbers, and
   `401(k)` are converted to words before Piper and caption timing.
@@ -296,9 +301,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Updated `README.md` with the automatic topic refill behavior and
   `--auto-generate-topics` override.
 - Tuned pacing for finance comprehension without weakening the first-second
-  hook: prompt now targets 65 to 78 spoken words and 38 to 50 seconds,
+  hook: prompt now targets 65 to 78 spoken words and 35 to 50 seconds,
   `run_piper()` passes optional Piper `tts` settings from config, defaults use
-  `length_scale = 1.12` and `sentence_silence = 0.28`, and caption groups are
+  `length_scale = 2.0` and `sentence_silence = 0.4`, and caption groups are
   capped at 6 words or 2.8 seconds.
 - Updated replay/retention prompt guidance: scripts should be clear on first
   watch, rewarding on second watch, and end by looping the final takeaway back
@@ -330,3 +335,29 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   malformed spoken currency phrases are normalized, text encoding/dash artifacts
   are cleaned before TTS, and Piper now runs with relative espeak data to handle
   accented Windows paths.
+
+### 2026-04-16
+
+- Reviewed the generated `A low monthly payment can hide a bad deal` output and
+  found the message direction usable, but not publication-ready because the
+  loan/APR/payment example was mathematically inconsistent and WhisperX changed
+  the visible caption text from `low` to `loan`.
+- Added deterministic loan math validation in `generate_short.py`: when a
+  script combines principal, APR, term, monthly payment, or total interest, the
+  gate estimates amortized payment and total interest before TTS.
+- Loan examples that state principal, APR, and total interest without a term are
+  blocked as under-specified instead of being treated as publishable.
+- Updated caption timing so WhisperX still supplies word timings, but displayed
+  caption words are aligned back to the approved script before chunking.
+- Updated `prompts/system_prompt.txt` and the quality-review prompt so future
+  scripts avoid unverifiable finance math and use qualitative wallet examples
+  when exact amortization is not known.
+- Prompt and review prompt now require economic, logical, mathematical, and
+  background-information coherence. The model should not invent market averages,
+  typical rates, hidden fees, or performance data unless the topic/caller
+  supplied them.
+- Added `video.min_seconds` as a hard post-TTS guard and slowed the local/config
+  example Piper defaults to keep finance explanations from rendering as
+  overloaded sub-30-second Shorts.
+- Made LLM review notes non-blocking when the deterministic gate is clean, and
+  added a hard check for finance claims that depend on current market-rate data.

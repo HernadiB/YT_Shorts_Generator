@@ -5,6 +5,7 @@
     "width": 1080,
     "height": 1920,
     "fps": 30,
+    "min_seconds": 35,
     "max_seconds": 50,
     "captions": {
       "mode": "progressive",
@@ -17,12 +18,12 @@
     "image_dir": "assets/backgrounds"
   },
   "tts": {
-    "length_scale": 1.12,
-    "sentence_silence": 0.28
+    "length_scale": 2.0,
+    "sentence_silence": 0.4
   },
   "quality_gate": {
     "enabled": true,
-    "max_revision_attempts": 2,
+    "max_revision_attempts": 3,
     "min_script_words": 65,
     "hard_min_script_words": 58,
     "max_script_words": 85,
