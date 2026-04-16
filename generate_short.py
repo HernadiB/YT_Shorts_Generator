@@ -30,6 +30,17 @@ DEFAULT_TAGS = [
 ]
 DEFAULT_HASHTAGS = ["#Shorts", "#PersonalFinance", "#FinanceTips"]
 MAX_YOUTUBE_TAG_CHARS = 480
+METADATA_SCHEMA_FIELDS = [
+    "title",
+    "description",
+    "tags",
+    "hashtags",
+    "search_keywords",
+    "playlist",
+    "script",
+    "sections",
+]
+METADATA_SCHEMA_KEYS = set(METADATA_SCHEMA_FIELDS)
 NUMBER_WORDS_ONES = [
     "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
     "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
@@ -92,6 +103,9 @@ QUALITY_GATE_DEFAULTS = {
     "hard_max_script_words": 165,
     "min_complete_sentences": 4,
     "fail_on_unresolved_issues": True,
+}
+RENDER_DEFAULTS = {
+    "tail_padding_seconds": 0.6,
 }
 GENERIC_INTRO_PATTERNS = [
     r"\btoday we (?:will|are going to)\b",
@@ -237,6 +251,20 @@ def quality_gate_config(config: dict | None):
     settings["enabled"] = bool(settings["enabled"])
     settings["fail_on_unresolved_issues"] = bool(
         settings["fail_on_unresolved_issues"]
+    )
+    return settings
+
+
+def render_config(config: dict | None):
+    configured = {}
+    if config:
+        configured = config.get("render", {}) or {}
+
+    settings = dict(RENDER_DEFAULTS)
+    settings.update(configured)
+    settings["tail_padding_seconds"] = max(
+        0.0,
+        float(settings["tail_padding_seconds"]),
     )
     return settings
 
@@ -755,6 +783,31 @@ def dedupe_issues(issues):
     return cleaned
 
 
+def unexpected_metadata_fragments(parsed):
+    fragments = []
+    if not isinstance(parsed, dict):
+        return fragments
+
+    for key, value in parsed.items():
+        if key in METADATA_SCHEMA_KEYS:
+            continue
+
+        for candidate in [key, normalize(value)]:
+            candidate = clean_text_artifacts(candidate)
+            if script_word_count(candidate) >= 8 or re.search(r"[.!?]", candidate):
+                fragments.append(candidate)
+
+    return dedupe_issues(fragments)
+
+
+def keep_metadata_schema(parsed):
+    return {
+        key: parsed[key]
+        for key in METADATA_SCHEMA_FIELDS
+        if key in parsed
+    }
+
+
 def parse_integer_words(tokens):
     total = 0
     current = 0
@@ -988,7 +1041,15 @@ def normalize_metadata(parsed, topic, playlist_titles):
     if not isinstance(parsed, dict):
         raise ValueError("Ollama did not return a JSON object.")
 
+    extra_script_fragments = unexpected_metadata_fragments(parsed)
     parsed = dict(parsed)
+    if extra_script_fragments:
+        parsed["script"] = " ".join([
+            normalize(parsed.get("script")),
+            *extra_script_fragments,
+        ]).strip()
+
+    parsed = keep_metadata_schema(parsed)
     parsed["script"] = clean_text_artifacts(parsed.get("script"))
     parsed["script"] = normalize_spoken_numbers(parsed["script"])
     parsed["script"] = repair_currency_adjective_phrases(parsed["script"])
@@ -1271,6 +1332,9 @@ Quality requirements:
   thousand dollars", not "one thousand dollar".
 - Preserve the topic and useful SEO metadata.
 - Use one exact playlist title from the allowed list if the list is not empty.
+- Return only the keys in the JSON schema below. Do not add extra keys.
+- Put every word that should be narrated inside the script field. Do not place
+  spoken narration in any other field.
 
 Return valid JSON only in this exact schema:
 {{
@@ -1424,6 +1488,8 @@ The script must:
 - write numbers, percentages, and currencies exactly as they should be spoken
 - keep any loan, APR, payment, term, and interest figures internally consistent
 - end with a short CTA
+- put every narrated word inside the script field
+- return only the JSON keys requested below
 
 Return valid JSON only in this format:
 {{
@@ -2006,7 +2072,7 @@ def write_concat(scenes, chunks, out):
         duration = max(0.033, c.end - c.start)
 
         lines.append(f"file '{rel}'")
-        lines.append(f"duration {duration:.3f}")
+        lines.append(f"duration {duration:.6f}")
 
     lines.append(f"file '{scenes[-1].relative_to(out.parent).as_posix()}'")
     out.write_text("\n".join(lines), encoding="utf-8")
@@ -2091,7 +2157,8 @@ def main():
     validate_audio_duration(audio_duration, config)
     words = transcribe_words(wav, script)
     chunks = build_caption_chunks(words, fps, config)
-    timeline = build_visual_timeline(chunks, audio_duration, fps)
+    tail_padding = render_config(config)["tail_padding_seconds"]
+    timeline = build_visual_timeline(chunks, audio_duration + tail_padding, fps)
     write_caption_timing(words, chunks, timeline, wd / "caption_timing.json")
 
     scenes = build_scenes(timeline, config, wd, slug)

@@ -220,6 +220,8 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - WhisperX supplies caption timings, but caption text is aligned back to the
   approved script before chunking. This keeps visible captions from inheriting
   ASR slips such as `low` becoming `loan`.
+- Render timeline uses a small `render.tail_padding_seconds` visual buffer so
+  FFmpeg has video frames available until the narration has fully finished.
 - `pick_font()` uses `C:/Windows/Fonts/arialbd.ttf`, so rendering is currently
   Windows-specific.
 - `run_pipeline.py` assumes the latest modified directory under `outputs/` is
@@ -365,3 +367,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Retuned natural speech pacing after the local `length_scale = 1.1` setting:
   scripts now target 105 to 145 spoken words, videos target 35 to 60 seconds,
   and `config.example.json` uses the same natural TTS pace as local config.
+- Added a schema guard for LLM metadata: narrated text found outside the `script`
+  field is folded back into the script before quality checks, and unknown
+  metadata keys are removed from the final metadata output.
+- Added a render tail padding config so the final scene extends past the voice
+  track before FFmpeg applies `-shortest`; this prevents end-of-video narration
+  clipping.

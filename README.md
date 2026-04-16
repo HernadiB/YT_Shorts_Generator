@@ -174,6 +174,9 @@ Important fields:
   "backgrounds": {
     "image_dir": "assets/backgrounds"
   },
+  "render": {
+    "tail_padding_seconds": 0.6
+  },
   "tts": {
     "length_scale": 1.1,
     "sentence_silence": 0.24
@@ -192,6 +195,10 @@ Important fields:
 `min_seconds` and `max_seconds` are hard quality guards for the generated voice
 duration. The current content target is a 35 to 60 second Short, which usually
 means a script around 105 to 145 spoken words at natural Piper pace.
+
+`render.tail_padding_seconds` extends the final visual scene slightly beyond
+the voice track before FFmpeg applies `-shortest`. This prevents the muxer from
+ending the video before the final narrated word has finished.
 
 Recommended Piper voices:
 
@@ -325,6 +332,8 @@ python run_pipeline.py --topic "What an ETF is in under 60 seconds"
 What happens:
 
 - Ollama writes the title, description, tags, sections, and script.
+- Any extra LLM text outside the expected metadata schema is folded back into
+  the script before quality checks, then unknown metadata keys are removed.
 - Piper turns the script into `voice.wav`.
 - WhisperX creates word timings for caption sync, then caption text is aligned
   back to the approved script so recognition slips do not change the displayed
@@ -531,6 +540,9 @@ After WhisperX returns timings, the generator aligns the recognized words back
 to the approved script text. The timings still come from the audio, but the
 visible captions follow the script. This prevents small ASR mistakes, such as
 confusing "low" with "loan", from becoming visible in the final Short.
+
+The last scene is padded slightly past the voice duration so the final video can
+only end after the narration is complete.
 
 ```json
 "captions": {

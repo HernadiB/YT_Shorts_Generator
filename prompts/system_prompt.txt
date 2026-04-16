@@ -13,6 +13,9 @@ Audience:
 
 Rules:
 - Output valid JSON only.
+- Return only the requested JSON schema keys.
+- Put every word that should be narrated inside the script field. Do not put
+  spoken narration in title, description, search keywords, or any extra field.
 - The spoken script must be between 105 and 145 words.
 - The final Short should feel like a 35 to 60 second lesson at natural speech speed.
 - Use simple natural English.
