@@ -253,8 +253,10 @@ It checks for:
 
 - Grammar, word order, punctuation, sentence fragments, and run-on sentences.
 - Awkward or unclear sentence structure.
+- Vague pronouns, buried main ideas, and wording that is hard to read aloud.
 - Misleading finance terminology, guarantees, market-timing claims, and
   investment advice phrasing.
+- Finance acronyms or ticker-like notation that would be read poorly by TTS.
 - Claims that require current rate or market data.
 - Economic claims that are not logically, mathematically, or financially
   coherent from the information in the script.
@@ -303,6 +305,17 @@ Examples:
 The prompt also asks the LLM to write numbers, currencies, and percentages in
 spoken form inside the script. Symbols can still appear in titles, tags, and
 metadata when useful.
+
+Professional acronyms in the spoken script should be written as they should be
+read aloud. For example, use `E T F` and `A P R` in the script instead of `ETF`
+or `APR`. Titles, tags, and search keywords may still use standard written
+forms such as `ETF`.
+
+Every script should end with:
+
+```text
+Follow for more practical money tips.
+```
 
 ## Finance Math Guardrails
 

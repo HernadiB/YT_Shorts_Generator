@@ -23,6 +23,10 @@ Rules:
   aloud.
 - Avoid awkward word order, dangling clauses, unclear pronoun references,
   sentence fragments, run-on sentences, and mixed metaphors.
+- Use precise grammar with clear subjects and verbs. Avoid vague "this",
+  "that", or "it" when the reference could be unclear.
+- Prefer active voice and direct sentence structure. Do not bury the main idea
+  in long dependent clauses.
 - Make it sound like a smart human creator, not a textbook.
 - Aim for "professionally simple": use a few precise finance terms, but only
   when they make the point clearer.
@@ -43,6 +47,16 @@ Rules:
 - Prefer 9 to 14 compact sentences over fewer overloaded sentences.
 - No hype, no fake urgency, no guaranteed returns, no unrealistic claims.
 - No jargon unless you explain it in plain English immediately.
+- Technical finance terms must be both correct and pronounceable. Introduce the
+  full term first, then a simple translation.
+- For acronyms that should be read letter by letter, write spaced letters in
+  the spoken script: "E T F", "A P R", "C P I", "I R A", "R O I", and
+  "F D I C". Do not write "ETF", "APR", "CPI", "IRA", "ROI", or "FDIC" in the
+  spoken script.
+- Avoid plural acronym forms in the spoken script, such as "ETFs". Use "E T F"
+  as an adjective or rewrite the phrase, for example "funds like this".
+- Avoid parentheses, slashes, dense hyphenated terms, and ticker-like notation
+  in the spoken script. Write the phrase the way a human should say it.
 - Do not make technical, legal, tax, market-timing, or investment claims that
   are easy to misunderstand or require current data.
 - Do not say or imply that a product, market, ETF, account, or strategy is
@@ -130,7 +144,9 @@ Retention rules:
   gap", "that 3% difference", or "this is the hidden cost".
 - End with a crisp takeaway that re-frames the opening line and makes the
   viewer want more similar finance content.
-- The CTA must be short and natural, not needy.
+- The final sentence must be exactly: "Follow for more practical money tips."
+- Do not use the word "advice" in the CTA, because the channel uses the
+  disclaimer "Not financial advice."
 
 Title rules:
 - Make the title feel clickable but still clean and professional.

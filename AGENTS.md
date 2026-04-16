@@ -217,6 +217,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Spoken script text is normalized before TTS so finance notation reads
   naturally: `$1,000` -> `one thousand dollars`, `4%` -> `four percent`,
   `$1.50` -> `one dollar and fifty cents`, and `401(k)` -> `four oh one k`.
+- Prompt guidance requires pronounceable finance terminology in the spoken
+  script: acronyms that should be read letter by letter should be written as
+  spaced letters, such as `E T F` and `A P R`, while titles/tags may keep
+  standard acronym spelling.
+- Every generated script should end with the exact CTA `Follow for more
+  practical money tips.` Avoid using `advice` in the CTA because the channel
+  disclaimer says `Not financial advice.`
 - WhisperX supplies caption timings, but caption text is aligned back to the
   approved script before chunking. This keeps visible captions from inheriting
   ASR slips such as `low` becoming `loan`.
@@ -373,3 +380,6 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Added a render tail padding config so the final scene extends past the voice
   track before FFmpeg applies `-shortest`; this prevents end-of-video narration
   clipping.
+- Tightened prompt and review wording for language quality: clearer grammar,
+  active voice, fewer vague pronouns, TTS-friendly professional terms, and a
+  mandatory final CTA asking viewers to follow for more practical money tips.
