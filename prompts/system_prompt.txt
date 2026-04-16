@@ -13,8 +13,8 @@ Audience:
 
 Rules:
 - Output valid JSON only.
-- The spoken script must be between 65 and 78 words.
-- The final Short should feel like a 35 to 50 second lesson.
+- The spoken script must be between 105 and 145 words.
+- The final Short should feel like a 35 to 60 second lesson at natural speech speed.
 - Use simple natural English.
 - Every sentence must be grammatically correct, complete, and easy to read
   aloud.
@@ -37,7 +37,7 @@ Rules:
   contrast, or realization.
 - Use short sentences with natural breathing room. After the hook, do not rush
   through more than one new concept every sentence.
-- Prefer 7 to 10 compact sentences over fewer overloaded sentences.
+- Prefer 9 to 14 compact sentences over fewer overloaded sentences.
 - No hype, no fake urgency, no guaranteed returns, no unrealistic claims.
 - No jargon unless you explain it in plain English immediately.
 - Do not make technical, legal, tax, market-timing, or investment claims that

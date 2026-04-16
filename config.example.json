@@ -6,7 +6,7 @@
     "height": 1920,
     "fps": 30,
     "min_seconds": 35,
-    "max_seconds": 50,
+    "max_seconds": 60,
     "captions": {
       "mode": "progressive",
       "min_words": 3,
@@ -18,16 +18,16 @@
     "image_dir": "assets/backgrounds"
   },
   "tts": {
-    "length_scale": 2.0,
-    "sentence_silence": 0.4
+    "length_scale": 1.1,
+    "sentence_silence": 0.24
   },
   "quality_gate": {
     "enabled": true,
     "max_revision_attempts": 3,
-    "min_script_words": 65,
-    "hard_min_script_words": 58,
-    "max_script_words": 85,
-    "hard_max_script_words": 95,
+    "min_script_words": 105,
+    "hard_min_script_words": 95,
+    "max_script_words": 145,
+    "hard_max_script_words": 165,
     "min_complete_sentences": 4,
     "fail_on_unresolved_issues": true
   },

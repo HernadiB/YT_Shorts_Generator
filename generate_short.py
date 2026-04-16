@@ -86,10 +86,10 @@ NUMBER_PARSE_IGNORED_WORDS = {"and"}
 QUALITY_GATE_DEFAULTS = {
     "enabled": True,
     "max_revision_attempts": 3,
-    "min_script_words": 65,
-    "hard_min_script_words": 58,
-    "max_script_words": 85,
-    "hard_max_script_words": 95,
+    "min_script_words": 105,
+    "hard_min_script_words": 95,
+    "max_script_words": 145,
+    "hard_max_script_words": 165,
     "min_complete_sentences": 4,
     "fail_on_unresolved_issues": True,
 }
@@ -1253,9 +1253,9 @@ Quality requirements:
   English immediately.
 - Keep one financial mechanism only. Remove side topics that muddy the logic.
 - Keep the hook sharp, but do not use clickbait, fake urgency, or vague hype.
-- Keep the spoken script between 65 and 78 words when possible.
-- A clean script between 60 and 85 words may still be approved. Do not reject a
-  publication-ready script only because it is slightly below 65 words.
+- Keep the spoken script between 105 and 145 words when possible.
+- A clean script between 95 and 155 words may still be approved. Do not reject
+  a publication-ready script only because it is slightly outside the target.
 - Use spoken numbers only in the script, such as "one thousand dollars" and
   "four percent". Do not write "$1,000", "4%", "USD", or "dollar one thousand"
   in the script.
@@ -1406,7 +1406,7 @@ The script must:
 - sound confident and professional
 - be easy to understand
 - sound "professionally simple": credible, but easy for a normal adult to follow
-- use 65 to 78 spoken words
+- use 105 to 145 spoken words
 - keep the first second sharp, then slow the explanation down for comprehension
 - make the main takeaway clear on first watch, but reward a replay with the
   example, contrast, or final line

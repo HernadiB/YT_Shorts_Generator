@@ -195,12 +195,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   deterministic gate finds no blocking issue. If the review returns a script
   below the hard minimum, the generator appends safe finance-context closing
   sentences before the final gate.
-- Content strategy target: 35 to 50 second Shorts, 65 to 78 spoken words, one
+- Content strategy target: 35 to 60 second Shorts, 105 to 145 spoken words, one
   financial mechanism per video, contrarian hook, precise term, plain-English
   translation, tiny number example, practical takeaway, and short CTA.
 - Pacing strategy: keep the first-second hook sharp, then slow the explanation
-  for comprehension. Current defaults use `video.min_seconds = 35`, Piper
-  `length_scale = 2.0`, `sentence_silence = 0.4`, and progressive caption
+  for comprehension. Current defaults use `video.min_seconds = 35`,
+  `video.max_seconds = 60`, Piper `length_scale = 1.1`,
+  `sentence_silence = 0.24`, and progressive caption
   groups capped around 6 words or 2.8 seconds.
 - Replay strategy: do not make scripts confusing to force replays. The main
   takeaway should be clear on first watch, while the example, contrast, or final
@@ -280,7 +281,7 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   tiny number example, and practical takeaway.
 - Updated `README.md` with the content standard and preferred content lanes.
 - Updated `config.example.json` and local ignored `config.json` to use
-  `video.min_seconds = 35` and `video.max_seconds = 50`.
+  `video.min_seconds = 35` and `video.max_seconds = 60`.
 - Updated `generate_short.py` to validate generated voice duration against
   `video.min_seconds` and `video.max_seconds` before WhisperX/rendering, so
   pacing outliers fail fast.
@@ -301,9 +302,9 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Updated `README.md` with the automatic topic refill behavior and
   `--auto-generate-topics` override.
 - Tuned pacing for finance comprehension without weakening the first-second
-  hook: prompt now targets 65 to 78 spoken words and 35 to 50 seconds,
+  hook: prompt now targets 105 to 145 spoken words and 35 to 60 seconds,
   `run_piper()` passes optional Piper `tts` settings from config, defaults use
-  `length_scale = 2.0` and `sentence_silence = 0.4`, and caption groups are
+  `length_scale = 1.1` and `sentence_silence = 0.24`, and caption groups are
   capped at 6 words or 2.8 seconds.
 - Updated replay/retention prompt guidance: scripts should be clear on first
   watch, rewarding on second watch, and end by looping the final takeaway back
@@ -361,3 +362,6 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   overloaded sub-30-second Shorts.
 - Made LLM review notes non-blocking when the deterministic gate is clean, and
   added a hard check for finance claims that depend on current market-rate data.
+- Retuned natural speech pacing after the local `length_scale = 1.1` setting:
+  scripts now target 105 to 145 spoken words, videos target 35 to 60 seconds,
+  and `config.example.json` uses the same natural TTS pace as local config.

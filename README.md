@@ -163,7 +163,7 @@ Important fields:
     "height": 1920,
     "fps": 30,
     "min_seconds": 35,
-    "max_seconds": 50,
+    "max_seconds": 60,
     "captions": {
       "mode": "progressive",
       "min_words": 3,
@@ -175,8 +175,8 @@ Important fields:
     "image_dir": "assets/backgrounds"
   },
   "tts": {
-    "length_scale": 2.0,
-    "sentence_silence": 0.4
+    "length_scale": 1.1,
+    "sentence_silence": 0.24
   },
   "paths": {
     "piper_exe": "C:/AI/piper/piper.exe",
@@ -190,8 +190,8 @@ Important fields:
 ```
 
 `min_seconds` and `max_seconds` are hard quality guards for the generated voice
-duration. The current content target is a 35 to 50 second Short, which usually
-means a script around 65 to 78 spoken words with a slower Piper pace.
+duration. The current content target is a 35 to 60 second Short, which usually
+means a script around 105 to 145 spoken words at natural Piper pace.
 
 Recommended Piper voices:
 
@@ -212,8 +212,8 @@ education market without copying generic "money hacks" content.
 
 Target format:
 
-- Length: 35 to 50 seconds.
-- Script: 65 to 78 spoken words.
+- Length: 35 to 60 seconds.
+- Script: 105 to 145 spoken words.
 - Pace: fast first-second hook, then slower explanation with natural breathing
   room. The goal is retention through comprehension, not maximum information
   density.
@@ -261,19 +261,20 @@ Default config:
 "quality_gate": {
   "enabled": true,
   "max_revision_attempts": 3,
-  "min_script_words": 65,
-  "hard_min_script_words": 58,
-  "max_script_words": 85,
-  "hard_max_script_words": 95,
+  "min_script_words": 105,
+  "hard_min_script_words": 95,
+  "max_script_words": 145,
+  "hard_max_script_words": 165,
   "min_complete_sentences": 4,
   "fail_on_unresolved_issues": true
 }
 ```
 
 Minor length or pacing drift becomes a warning, not a hard failure. For example,
-a clean 62-word script can continue. If a review accidentally returns a script
-below the hard minimum, the generator appends safe finance-context closing
-sentences and checks it again. Grammar problems, broken sentence structure,
+a clean 98-word script can continue, but very short drafts are still repaired or
+blocked before rendering. If a review accidentally returns a script below the
+hard minimum, the generator appends safe finance-context closing sentences and
+checks it again. Grammar problems, broken sentence structure,
 risky finance claims, current-data finance claims, placeholders, TTS-hostile
 finance notation, and inconsistent loan math still fail before voice, captions,
 or video rendering start. LLM review notes are retained as warnings unless the
