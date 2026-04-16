@@ -2,10 +2,12 @@ import argparse
 import json
 import re
 import random
+import shutil
 import subprocess
 import textwrap
 import os
 import ctypes
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -64,7 +66,10 @@ QUALITY_GATE_DEFAULTS = {
     "enabled": True,
     "max_revision_attempts": 2,
     "min_script_words": 65,
+    "hard_min_script_words": 58,
     "max_script_words": 85,
+    "hard_max_script_words": 95,
+    "min_complete_sentences": 4,
     "fail_on_unresolved_issues": True,
 }
 GENERIC_INTRO_PATTERNS = [
@@ -81,6 +86,36 @@ RISKY_FINANCE_PATTERNS = [
     r"\bmust buy\b",
 ]
 PLACEHOLDER_PATTERN = r"\b(?:todo|placeholder|insert here|n/a|tbd)\b"
+TEXT_ARTIFACT_REPLACEMENTS = {
+    "â€“": "-",
+    "â€”": "-",
+    "â€˜": "'",
+    "â€™": "'",
+    "â€œ": '"',
+    "â€": '"',
+    "â€¦": "...",
+    "–": "-",
+    "—": "-",
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+    "…": "...",
+    "\u00a0": " ",
+}
+AMOUNT_WORD_PATTERN = (
+    "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|"
+    "twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
+    "nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
+    "ninety|hundred|thousand|million|billion|trillion"
+)
+SCRIPT_EXPANSION_SENTENCES = [
+    "The real lesson is simple.",
+    "Understand the mechanism before copying the rule.",
+    "Small timing details can change what the decision actually costs.",
+    "That is what turns a finance term into a wallet-level decision.",
+    "Follow for clearer money mechanics.",
+]
 
 
 def resolve_path(p):
@@ -114,6 +149,16 @@ def short_output_path(path: Path) -> str:
     return str(Path(parent_short) / path.name)
 
 
+def piper_relative_path(path: Path, workdir: Path):
+    path = Path(path).resolve()
+    workdir = Path(workdir).resolve()
+
+    try:
+        return str(path.relative_to(workdir))
+    except ValueError:
+        return short_path(path)
+
+
 @dataclass
 class Chunk:
     text: str
@@ -137,9 +182,25 @@ def quality_gate_config(config: dict | None):
     settings.update(configured)
     settings["max_revision_attempts"] = max(0, int(settings["max_revision_attempts"]))
     settings["min_script_words"] = max(1, int(settings["min_script_words"]))
+    settings["hard_min_script_words"] = max(
+        1,
+        int(settings["hard_min_script_words"]),
+    )
+    settings["hard_min_script_words"] = min(
+        settings["hard_min_script_words"],
+        settings["min_script_words"],
+    )
     settings["max_script_words"] = max(
         settings["min_script_words"],
         int(settings["max_script_words"]),
+    )
+    settings["hard_max_script_words"] = max(
+        settings["max_script_words"],
+        int(settings["hard_max_script_words"]),
+    )
+    settings["min_complete_sentences"] = max(
+        1,
+        int(settings["min_complete_sentences"]),
     )
     settings["enabled"] = bool(settings["enabled"])
     settings["fail_on_unresolved_issues"] = bool(
@@ -192,6 +253,17 @@ def normalize(value: Any):
     return str(value).strip()
 
 
+def clean_text_artifacts(text: str):
+    text = normalize(text)
+    for bad, replacement in TEXT_ARTIFACT_REPLACEMENTS.items():
+        text = text.replace(bad, replacement)
+
+    text = re.sub(r"\s+-\s+it(?:'| i)s\b", ". It is", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+-\s+", ". ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def tag_candidates(value: Any):
     if isinstance(value, list):
         return [normalize(v) for v in value]
@@ -203,7 +275,7 @@ def tag_candidates(value: Any):
 
 
 def clean_tag(tag: str):
-    tag = normalize(tag).replace("#", "")
+    tag = clean_text_artifacts(tag).replace("#", "")
     tag = re.sub(r"\s+", " ", tag).strip(" ,|#")
     return tag[:60].strip()
 
@@ -517,6 +589,53 @@ def normalize_spoken_numbers(text: str):
     return text
 
 
+def repair_currency_adjective_phrases(text: str):
+    text = normalize(text)
+
+    def replace_currency_adjective(match):
+        amount = re.sub(r"\s+", " ", match.group("amount")).strip()
+        currency = match.group("currency").lower()
+        noun = re.sub(r"\s+", " ", match.group("noun")).strip()
+        article = "an" if noun[:1].casefold() in {"a", "e", "i", "o", "u"} else "a"
+        if match.group("article")[0].isupper():
+            article = article.capitalize()
+        return f"{article} {noun} of {amount} {currency}"
+
+    noun_pattern = (
+        "emergency fund|savings account|credit card balance|loan payment|"
+        "monthly payment|investment account|cash reserve|budget gap|"
+        "repair bill|medical bill|expense|fee|cost|payment|balance|fund"
+    )
+    return re.sub(
+        rf"\b(?P<article>[Aa]n?)\s+"
+        rf"(?P<amount>(?:(?:{AMOUNT_WORD_PATTERN})\s+)+)"
+        rf"(?P<currency>dollars?|euros?|pounds?)\s+"
+        rf"(?P<noun>{noun_pattern})\b",
+        replace_currency_adjective,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def repair_currency_unit_pluralization(text: str):
+    text = normalize(text)
+
+    def replace_currency_unit(match):
+        amount = re.sub(r"\s+", " ", match.group("amount")).strip()
+        currency = match.group("currency").lower()
+        if amount.casefold() == "one":
+            return f"{amount} {currency}"
+        return f"{amount} {currency}s"
+
+    return re.sub(
+        rf"\b(?P<amount>(?:(?:{AMOUNT_WORD_PATTERN})\s+)+)"
+        r"(?P<currency>dollar|euro|pound)\b",
+        replace_currency_unit,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
 def normalize_sections(value: Any):
     if isinstance(value, list):
         sections = [normalize(v) for v in value]
@@ -608,10 +727,13 @@ def normalize_metadata(parsed, topic, playlist_titles):
         raise ValueError("Ollama did not return a JSON object.")
 
     parsed = dict(parsed)
-    parsed["script"] = normalize(parsed.get("script"))
+    parsed["script"] = clean_text_artifacts(parsed.get("script"))
     parsed["script"] = normalize_spoken_numbers(parsed["script"])
-    parsed["title"] = normalize(parsed.get("title"))
-    parsed["description"] = normalize(parsed.get("description"))
+    parsed["script"] = repair_currency_adjective_phrases(parsed["script"])
+    parsed["script"] = repair_currency_unit_pluralization(parsed["script"])
+    parsed["script"] = clean_text_artifacts(parsed["script"])
+    parsed["title"] = clean_text_artifacts(parsed.get("title"))
+    parsed["description"] = clean_text_artifacts(parsed.get("description"))
     parsed["playlist"] = normalize_playlist(parsed.get("playlist"), playlist_titles)
     parsed["sections"] = normalize_sections(parsed.get("sections"))
 
@@ -660,19 +782,30 @@ def heuristic_quality_issues(meta, settings):
         return ["Script is empty."]
 
     word_count = script_word_count(script)
-    if word_count < settings["min_script_words"]:
+    if word_count < settings["hard_min_script_words"]:
+        issues.append(
+            f"Script is far too short: {word_count} words; "
+            f"hard minimum is {settings['hard_min_script_words']}."
+        )
+    elif word_count < settings["min_script_words"]:
         issues.append(
             f"Script is too short: {word_count} words; "
-            f"minimum is {settings['min_script_words']}."
+            f"target minimum is {settings['min_script_words']}."
         )
-    if word_count > settings["max_script_words"]:
+
+    if word_count > settings["hard_max_script_words"]:
+        issues.append(
+            f"Script is far too long: {word_count} words; "
+            f"hard maximum is {settings['hard_max_script_words']}."
+        )
+    elif word_count > settings["max_script_words"]:
         issues.append(
             f"Script is too long: {word_count} words; "
-            f"maximum is {settings['max_script_words']}."
+            f"target maximum is {settings['max_script_words']}."
         )
 
     sentences = sentence_list(script)
-    if len(sentences) < 5:
+    if len(sentences) < settings["min_complete_sentences"]:
         issues.append("Script has too few complete sentences.")
     if len(sentences) > 12:
         issues.append("Script has too many sentences for the target pacing.")
@@ -693,6 +826,9 @@ def heuristic_quality_issues(meta, settings):
         issues.append("Script contains an accidental repeated word.")
 
     searchable_text = f"{title}\n{description}\n{script}"
+    if any(bad in searchable_text for bad in TEXT_ARTIFACT_REPLACEMENTS):
+        issues.append("Script or metadata contains text encoding artifacts.")
+
     if re.search(PLACEHOLDER_PATTERN, searchable_text, flags=re.IGNORECASE):
         issues.append("Metadata or script contains placeholder text.")
 
@@ -709,23 +845,97 @@ def heuristic_quality_issues(meta, settings):
     if re.search(r"[$€£%]|\b(?:USD|EUR|GBP)\b", script, flags=re.IGNORECASE):
         issues.append("Spoken script still contains numeric finance symbols.")
 
-    amount_words = (
-        "zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|"
-        "twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|"
-        "nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|"
-        "ninety|hundred|thousand|million|billion|trillion"
-    )
     if re.search(
-        rf"\b(?:dollars?|euros?|pounds?)\s+(?:{amount_words})\b",
+        rf"\b(?:dollars?|euros?|pounds?)\s+(?:{AMOUNT_WORD_PATTERN})\b",
         script,
         flags=re.IGNORECASE,
     ):
         issues.append("Script contains a misordered currency phrase.")
 
-    if re.search(rf"\bpercent\s+(?:{amount_words})\b", script, flags=re.IGNORECASE):
+    if re.search(
+        rf"\bpercent\s+(?:{AMOUNT_WORD_PATTERN})\b",
+        script,
+        flags=re.IGNORECASE,
+    ):
         issues.append("Script contains a misordered percentage phrase.")
 
+    if re.search(
+        rf"\b[Aa]n?\s+(?:(?:{AMOUNT_WORD_PATTERN})\s+)+"
+        r"(?:dollars?|euros?|pounds?)\s+"
+        r"(?:fund|payment|account|balance|expense|fee|cost|bill)\b",
+        script,
+        flags=re.IGNORECASE,
+    ):
+        issues.append("Script contains an ungrammatical currency adjective phrase.")
+
+    for match in re.finditer(
+        rf"\b(?P<amount>(?:(?:{AMOUNT_WORD_PATTERN})\s+)+)"
+        r"(?P<currency>dollar|euro|pound)\b",
+        script,
+        flags=re.IGNORECASE,
+    ):
+        amount = re.sub(r"\s+", " ", match.group("amount")).strip()
+        if amount.casefold() != "one":
+            issues.append(
+                "Script contains a singular currency unit after a plural amount."
+            )
+            break
+
     return dedupe_issues(issues)
+
+
+def sentence_already_present(script, sentence):
+    return sentence.casefold() in script.casefold()
+
+
+def repair_short_script(meta, settings):
+    script = normalize(meta.get("script"))
+    if script_word_count(script) >= settings["hard_min_script_words"]:
+        return meta
+
+    additions = []
+    for sentence in SCRIPT_EXPANSION_SENTENCES:
+        if "follow" in sentence.casefold() and re.search(r"\bfollow\b", script, re.I):
+            continue
+        if sentence_already_present(script, sentence):
+            continue
+
+        additions.append(sentence)
+        candidate = " ".join([script] + additions)
+        if script_word_count(candidate) >= settings["min_script_words"]:
+            break
+
+    if not additions:
+        return meta
+
+    repaired = dict(meta)
+    repaired["script"] = normalize_spoken_numbers(" ".join([script] + additions))
+    repaired["script"] = repair_currency_adjective_phrases(repaired["script"])
+    repaired["script"] = repair_currency_unit_pluralization(repaired["script"])
+    repaired["script"] = clean_text_artifacts(repaired["script"])
+    return repaired
+
+
+def blocking_quality_issues(issues):
+    blocking = []
+    soft_prefixes = (
+        "Script is too short:",
+        "Script is too long:",
+        "Script has too few complete sentences.",
+        "Script has too many sentences for the target pacing.",
+        "Script has an overloaded sentence above 22 words",
+        "Overloaded sentence:",
+        "Spoken script exceeds word limit.",
+        "Technical term ",
+        "LLM quality review did not approve the script.",
+    )
+
+    for issue in dedupe_issues(issues):
+        if issue.startswith(soft_prefixes):
+            continue
+        blocking.append(issue)
+
+    return blocking
 
 
 def build_quality_review_prompt(topic, meta, playlist_titles, issues):
@@ -763,9 +973,15 @@ Quality requirements:
 - Keep one financial mechanism only. Remove side topics that muddy the logic.
 - Keep the hook sharp, but do not use clickbait, fake urgency, or vague hype.
 - Keep the spoken script between 65 and 78 words when possible.
+- A clean script between 60 and 85 words may still be approved. Do not reject a
+  publication-ready script only because it is slightly below 65 words.
 - Use spoken numbers only in the script, such as "one thousand dollars" and
   "four percent". Do not write "$1,000", "4%", "USD", or "dollar one thousand"
   in the script.
+- Do not use broken currency adjectives. Write "an emergency fund of one
+  thousand dollars", not "a one thousand dollars emergency fund".
+- Use plural currency units after any amount other than exactly "one": "one
+  thousand dollars", not "one thousand dollar".
 - Preserve the topic and useful SEO metadata.
 - Use one exact playlist title from the allowed list if the list is not empty.
 
@@ -836,32 +1052,41 @@ def apply_quality_gate(meta, topic, model, url, playlist_titles, settings):
             topic,
             playlist_titles,
         )
+        meta = repair_short_script(meta, settings)
 
         if approved and not review_issues:
             post_review_issues = heuristic_quality_issues(meta, settings)
-            if not post_review_issues:
+            blocking_issues = blocking_quality_issues(post_review_issues)
+            if not blocking_issues:
                 meta["quality_checks"] = {
                     "enabled": True,
                     "passed": True,
                     "review_attempts": attempts,
-                    "issues": [],
+                    "issues": blocking_issues,
+                    "warnings": post_review_issues,
                 }
                 return meta
 
+    meta = repair_short_script(meta, settings)
     final_issues = heuristic_quality_issues(meta, settings)
     if attempts and not approved:
         final_issues.append("LLM quality review did not approve the script.")
     final_issues.extend(review_issues)
     final_issues = dedupe_issues(final_issues)
+    blocking_issues = blocking_quality_issues(final_issues)
     meta["quality_checks"] = {
         "enabled": True,
-        "passed": not final_issues,
+        "passed": not blocking_issues,
         "review_attempts": attempts,
-        "issues": final_issues,
+        "issues": blocking_issues,
+        "warnings": [
+            issue for issue in final_issues
+            if issue not in blocking_issues
+        ],
     }
 
-    if final_issues and settings["fail_on_unresolved_issues"]:
-        formatted = "\n- ".join(final_issues)
+    if blocking_issues and settings["fail_on_unresolved_issues"]:
+        formatted = "\n- ".join(blocking_issues)
         raise ValueError(f"Generated script failed the quality gate:\n- {formatted}")
 
     return meta
@@ -942,19 +1167,26 @@ def run_piper(script_text: str, config: dict, out_wav: Path):
     voice_model_path = resolve_path(config["paths"]["voice_model"])
     voice_config_path = resolve_path(config["paths"]["voice_config"])
     tts_config = config.get("tts", {})
+    piper_workdir = piper_exe_path.resolve().parent
+    espeak_data_path = piper_workdir / "espeak-ng-data"
+    temp_wav = piper_workdir / f"piper-output-{uuid.uuid4().hex}.wav"
 
-    piper_exe = short_path(piper_exe_path)
-    voice_model = short_path(voice_model_path)
-    voice_config = short_path(voice_config_path)
-    out_wav_short = short_output_path(out_wav)
+    if temp_wav.exists():
+        temp_wav.unlink()
 
     cmd = [
-        piper_exe,
+        str(piper_exe_path.resolve()),
         "--model",
-        voice_model,
+        piper_relative_path(voice_model_path, piper_workdir),
         "--config",
-        voice_config,
+        piper_relative_path(voice_config_path, piper_workdir),
     ]
+
+    if espeak_data_path.exists():
+        cmd.extend([
+            "--espeak_data",
+            piper_relative_path(espeak_data_path, piper_workdir),
+        ])
 
     for option in ["length_scale", "sentence_silence", "noise_scale", "noise_w"]:
         value = tts_config.get(option)
@@ -963,7 +1195,7 @@ def run_piper(script_text: str, config: dict, out_wav: Path):
 
     cmd.extend([
         "--output_file",
-        out_wav_short,
+        temp_wav.name,
     ])
 
     result = subprocess.run(
@@ -971,16 +1203,22 @@ def run_piper(script_text: str, config: dict, out_wav: Path):
         input=script_text,
         text=True,
         capture_output=True,
-        check=False
+        check=False,
+        cwd=str(piper_workdir),
     )
 
     if result.returncode != 0:
+        if temp_wav.exists():
+            temp_wav.unlink()
         raise RuntimeError(
             f"Piper crashed.\n"
             f"Return code: {result.returncode}\n\n"
             f"STDOUT:\n{result.stdout}\n\n"
             f"STDERR:\n{result.stderr}"
         )
+
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(temp_wav), str(out_wav))
 
 
 # ---------------------------

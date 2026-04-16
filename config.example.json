@@ -24,7 +24,10 @@
     "enabled": true,
     "max_revision_attempts": 2,
     "min_script_words": 65,
+    "hard_min_script_words": 58,
     "max_script_words": 85,
+    "hard_max_script_words": 95,
+    "min_complete_sentences": 4,
     "fail_on_unresolved_issues": true
   },
   "music": {

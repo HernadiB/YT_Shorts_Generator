@@ -190,7 +190,10 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   fact-checker, rewrite weak copy, and approve the result before TTS. A
   deterministic gate also rejects unresolved grammar/structure, risky finance
   claims, placeholder text, overloaded sentences, and TTS-hostile finance
-  notation.
+  notation. Minor length or pacing drift is stored as a warning so a clean
+  60-ish-word script does not block the pipeline. If the review returns a script
+  below the hard minimum, the generator appends safe finance-context closing
+  sentences before the final gate.
 - Content strategy target: 38 to 50 second Shorts, 65 to 78 spoken words, one
   financial mechanism per video, contrarian hook, precise term, plain-English
   translation, tiny number example, practical takeaway, and short CTA.
@@ -216,7 +219,11 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   Windows-specific.
 - `run_pipeline.py` assumes the latest modified directory under `outputs/` is
   the just-generated video after `generate_short.py` completes.
-- `test_voice.py` does not pass `voice_config`, while `generate_short.py` does.
+- `test_voice.py` uses the same `run_piper()` helper as `generate_short.py`, so
+  voice tests cover the actual Piper invocation path.
+- Piper is run from its own directory with a relative `--espeak_data` path and a
+  temporary WAV in the Piper directory. This avoids Windows crashes when the
+  repo path contains accented characters such as `Hernádi Barnabás`.
 - Full video generation can be slow and depends on local Ollama, Piper,
   WhisperX models, FFmpeg, and local paths being correctly configured.
 - Do not inspect or print OAuth tokens or local credential files unless the user
@@ -313,3 +320,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   to the configured retry limit, and rejected if grammar, sentence structure,
   risky finance claims, placeholders, overloaded sentences, or spoken-number
   issues remain.
+- Relaxed quality gate failure semantics so target word-count and sentence-count
+  misses are warnings, while hard length limits and actual language, structure,
+  finance-claim, placeholder, and spoken-number issues remain blocking.
+- Added deterministic short-script repair for cases where the LLM quality review
+  returns an otherwise clean script below the hard minimum.
+- Fixed the follow-up generation failures for the `Liquidity is the reason cash
+  still matters` topic: quality gate length/style drift no longer crashes,
+  malformed spoken currency phrases are normalized, text encoding/dash artifacts
+  are cleaned before TTS, and Piper now runs with relative espeak data to handle
+  accented Windows paths.

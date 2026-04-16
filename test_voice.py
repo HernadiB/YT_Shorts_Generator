@@ -1,6 +1,7 @@
-import subprocess
 from pathlib import Path
 import json
+
+from generate_short import run_piper
 
 ROOT = Path(__file__).resolve().parent
 
@@ -14,20 +15,5 @@ That's why it's one of the easiest ways to start."""
 
 out = ROOT / "test_voice.wav"
 
-cmd = [
-    config["paths"]["piper_exe"],
-    "--model",
-    config["paths"]["voice_model"],
-    "--config",
-    config["paths"]["voice_config"],
-    "--output_file",
-    str(out)
-]
-
-for option in ["length_scale", "sentence_silence", "noise_scale", "noise_w"]:
-    value = config.get("tts", {}).get(option)
-    if value is not None:
-        cmd.extend([f"--{option}", str(value)])
-
-subprocess.run(cmd, input=text, text=True, check=True)
+run_piper(text, config, out)
 print(f"Done: {out}")

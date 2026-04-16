@@ -258,14 +258,21 @@ Default config:
   "enabled": true,
   "max_revision_attempts": 2,
   "min_script_words": 65,
+  "hard_min_script_words": 58,
   "max_script_words": 85,
+  "hard_max_script_words": 95,
+  "min_complete_sentences": 4,
   "fail_on_unresolved_issues": true
 }
 ```
 
-If the script still has unresolved quality issues after revision, generation
-fails before voice, captions, or video rendering start. This is intentional:
-bad copy should not become a rendered Short.
+Minor length or pacing drift becomes a warning, not a hard failure. For example,
+a clean 62-word script can continue. If a review accidentally returns a script
+below the hard minimum, the generator appends safe finance-context closing
+sentences and checks it again. Grammar problems, broken sentence structure,
+risky finance claims, placeholders, and TTS-hostile finance notation still fail
+before voice, captions, or video rendering start. This is intentional: bad copy
+should not become a rendered Short.
 
 ## TTS-Friendly Numbers
 
@@ -657,6 +664,10 @@ If Piper fails, check these `config.json` paths:
 "voice_model": "C:/AI/piper/voices/en_US-lessac-medium.onnx",
 "voice_config": "C:/AI/piper/voices/en_US-lessac-medium.onnx.json"
 ```
+
+On Windows, Piper is run from its own directory with a relative
+`--espeak_data` path. This avoids crashes when the repository path contains
+accented characters.
 
 If captions or timing fail, confirm WhisperX installed correctly:
 

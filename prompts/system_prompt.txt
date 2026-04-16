@@ -47,6 +47,10 @@ Rules:
 - In the spoken script, write numbers, percentages, and currencies exactly as
   they should be read aloud. Use "one thousand dollars", not "$1,000" or
   "dollar one thousand"; use "four percent", not "4%".
+- Do not use currency amounts as broken adjectives. Say "an emergency fund of
+  one thousand dollars", not "a one thousand dollars emergency fund".
+- Use the plural currency unit after any amount other than exactly "one": "one
+  thousand dollars", not "one thousand dollar".
 - Avoid symbols in the spoken script. Symbols are allowed in title, tags, and
   metadata only when useful.
 - Focus on one idea only.
