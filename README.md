@@ -24,7 +24,7 @@ YT_Shorts_Generator/
 |-- test_voice.py                     # Quick Piper voice test
 |-- setup_windows.ps1                 # Human-readable Windows setup helper
 |-- start_dev.ps1                     # Start the local development session services
-|-- stop_dev.ps1                      # Stop services started by start_dev.ps1
+|-- stop_dev.ps1                      # Stop the local development session services
 |-- requirements.txt                  # Python dependencies
 |-- config.example.json               # Template for local config.json
 |-- channel_profile.json              # Public channel positioning and setup config
@@ -179,18 +179,19 @@ Useful options:
 .\start_dev.ps1 -DryRun
 ```
 
-Stop services that were started by the development script:
+Stop the local development session services:
 
 ```powershell
 .\stop_dev.ps1
 ```
 
-By default, `stop_dev.ps1` only stops an Ollama process that was started and
-tracked by `start_dev.ps1`. If you explicitly want to stop every local Ollama
-process, use:
+By default, `stop_dev.ps1` stops local `ollama app.exe` and `ollama.exe`
+processes because the tray app can restart the server after `ollama.exe` is
+stopped. If you want to remove only the project state file and leave externally
+started Ollama processes running, use:
 
 ```powershell
-.\stop_dev.ps1 -ForceAllOllama
+.\stop_dev.ps1 -KeepExternalOllama
 ```
 
 ## Configure `.env`

@@ -425,7 +425,7 @@ try {
     Write-Host "Or activate the environment in your terminal:"
     Write-Host "  .\.venv\Scripts\Activate.ps1"
     Write-Host ""
-    Write-Host "Stop services started by this script:"
+    Write-Host "Stop the local dev services:"
     Write-Host "  .\stop_dev.ps1"
 } finally {
     Pop-Location

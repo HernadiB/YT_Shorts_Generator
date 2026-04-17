@@ -406,4 +406,14 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   `powershell -NoProfile -ExecutionPolicy Bypass -File`.
 - Direct `.\start_dev.ps1` / `.\stop_dev.ps1` execution was blocked by the
   local PowerShell execution policy, so the README documents the bypass path.
+- Follow-up fix: `stop_dev.ps1` originally left Ollama running when no
+  `.dev/services.json` state file existed or when Ollama had been started
+  before `start_dev.ps1`; it now stops local `ollama app.exe` and `ollama.exe`
+  processes by default because the tray app can respawn the server, with
+  `-KeepExternalOllama` available to preserve externally started Ollama.
+- Updated `README.md` to reflect the new shutdown behavior.
+- Verification for the follow-up: `stop_dev.ps1 -DryRun` saw both `ollama app`
+  and `ollama`, actual `stop_dev.ps1` stopped both, `Get-Process` found no
+  remaining `ollama*` processes, `netstat` found no `:11434` listener, and
+  `http://localhost:11434/api/tags` was down afterward.
 - Unresolved questions: none.

@@ -1,5 +1,6 @@
 param(
     [switch]$ForceAllOllama,
+    [switch]$KeepExternalOllama,
     [switch]$DryRun,
     [int]$TimeoutSeconds = 15
 )
@@ -77,6 +78,14 @@ function Get-OllamaProcess {
     return $null
 }
 
+function Get-OllamaProcesses {
+    return @(
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProcessName -like "ollama*" } |
+            Sort-Object @{ Expression = { if ($_.ProcessName -eq "ollama app") { 0 } else { 1 } } }, ProcessName, Id
+    )
+}
+
 function Wait-ProcessExit {
     param(
         [int]$ProcessId,
@@ -92,6 +101,39 @@ function Wait-ProcessExit {
     }
 }
 
+function Stop-OllamaProcess {
+    param(
+        [object]$ProcessId,
+        [string]$Reason
+    )
+
+    $process = Get-OllamaProcess -ProcessId $ProcessId
+    if ($null -eq $process) {
+        return $false
+    }
+
+    Write-Step "Stopping Ollama process $($process.Id)"
+    if (-not [string]::IsNullOrWhiteSpace($Reason)) {
+        Write-Host $Reason
+    }
+
+    if ($DryRun) {
+        Write-Host "DRY RUN would stop process $($process.Id)"
+        return $true
+    }
+
+    Stop-Process -Id $process.Id -Force -ErrorAction Stop
+    Wait-ProcessExit -ProcessId $process.Id -Seconds $TimeoutSeconds
+
+    if ($null -eq (Get-OllamaProcess -ProcessId $process.Id)) {
+        Write-Ok "Stopped Ollama process $($process.Id)"
+    } else {
+        Write-Warn "Ollama process $($process.Id) did not exit within $TimeoutSeconds seconds"
+    }
+
+    return $true
+}
+
 function Stop-TrackedOllama {
     $state = Read-ServiceState
     $ollamaState = Get-ObjectProperty -Object $state -Name "ollama"
@@ -103,39 +145,45 @@ function Stop-TrackedOllama {
         return
     }
 
-    $process = Get-OllamaProcess -ProcessId $trackedPid
-    if ($null -eq $process) {
+    $stopped = Stop-OllamaProcess -ProcessId $trackedPid -Reason "Tracked by .dev service state."
+    if (-not $stopped) {
         Write-Warn "Tracked Ollama process is not running"
-        return
     }
-
-    Write-Step "Stopping tracked Ollama process $($process.Id)"
-    if ($DryRun) {
-        Write-Host "DRY RUN would stop process $($process.Id)"
-        return
-    }
-
-    Stop-Process -Id $process.Id -Force -ErrorAction Stop
-    Wait-ProcessExit -ProcessId $process.Id -Seconds $TimeoutSeconds
-    Write-Ok "Stopped tracked Ollama process"
 }
 
 function Stop-AllOllama {
-    $processes = @(Get-Process -Name "ollama" -ErrorAction SilentlyContinue)
-    if ($processes.Count -eq 0) {
-        Write-Ok "No Ollama processes are running"
-        return
-    }
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $sawProcess = $false
 
-    Write-Step "Stopping all Ollama processes"
-    foreach ($process in $processes) {
-        if ($DryRun) {
-            Write-Host "DRY RUN would stop process $($process.Id)"
-            continue
+    while ($true) {
+        $processes = @(Get-OllamaProcesses)
+        if ($processes.Count -eq 0) {
+            if ($sawProcess) {
+                Write-Ok "No Ollama processes remain"
+            } else {
+                Write-Ok "No Ollama processes are running"
+            }
+            return
         }
 
-        Stop-Process -Id $process.Id -Force -ErrorAction Stop
-        Write-Ok "Stopped Ollama process $($process.Id)"
+        $sawProcess = $true
+        Write-Step "Stopping all Ollama processes"
+        foreach ($process in $processes) {
+            [void](Stop-OllamaProcess -ProcessId $process.Id -Reason "Local Ollama shutdown.")
+        }
+
+        if ($DryRun) {
+            return
+        }
+
+        Start-Sleep -Milliseconds 500
+        if ((Get-Date) -ge $deadline) {
+            $remaining = @(Get-OllamaProcesses)
+            if ($remaining.Count -gt 0) {
+                $remainingList = ($remaining | ForEach-Object { "$($_.ProcessName)($($_.Id))" }) -join ", "
+                throw "Ollama processes are still running after $TimeoutSeconds seconds: $remainingList"
+            }
+        }
     }
 }
 
@@ -146,10 +194,10 @@ try {
 
     Stop-TrackedOllama
 
-    if ($ForceAllOllama) {
+    if ($KeepExternalOllama -and -not $ForceAllOllama) {
+        Write-Warn "Keeping external Ollama processes because -KeepExternalOllama was set"
+    } else {
         Stop-AllOllama
-    } elseif (-not (Test-Path $StatePath)) {
-        Write-Warn "No .dev state file was found; external Ollama processes were left alone"
     }
 
     if (-not $DryRun -and (Test-Path $StatePath)) {
