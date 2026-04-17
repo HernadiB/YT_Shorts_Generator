@@ -473,4 +473,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   after GitHub blocked a green owner-authored PR because required self-review
   cannot be satisfied in this one-user repo. The ruleset remains active for
   direct branch protection.
+- Merged PR #16 to `development`; the follow-up Pages workflow run on
+  `development` succeeded.
+- Created PR #18 from `release/master-promotion` after PR #9 was dirty against
+  `master`; PR #18 resolved `README.md` and `AGENTS.md` by keeping the current
+  `development` documentation set, then merged to `master`.
+- Tagged `v0.1.0-rc.1`, but the release workflow failed in the version
+  validation step because the bash regex escaped literal dots twice. The fix is
+  being carried on `fix/release-version-regex` and future prerelease publishing
+  should use the next prerelease tag rather than rewriting the failed tag.
 - Unresolved questions: none.
