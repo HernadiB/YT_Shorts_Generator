@@ -482,4 +482,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   validation step because the bash regex escaped literal dots twice. The fix is
   being carried on `fix/release-version-regex` and future prerelease publishing
   should use the next prerelease tag rather than rewriting the failed tag.
+- Merged PR #19 to fix release workflow version validation and PR #20 to promote
+  that fix to `master`.
+- Published GitHub Release `v0.1.0-rc.2` as a prerelease with ZIP, TAR.GZ, and
+  SHA256SUMS assets.
+- Closed issue #4, issue #15, and milestone `v0.1 Repository Governance` as
+  completed.
+- Updated the repository ruleset required checks to include
+  `Python syntax and static checks`, `Build source package`, and
+  `CodeQL analysis`.
 - Unresolved questions: none.

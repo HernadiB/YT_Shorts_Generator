@@ -92,6 +92,13 @@ git push origin v0.1.0-rc.2
 4. Review the generated GitHub Release.
 5. Verify archive checksums from `SHA256SUMS.txt`.
 
+## Release History
+
+- `v0.1.0-rc.1`: tag workflow started but failed before release publication
+  because version validation used an over-escaped bash regex.
+- `v0.1.0-rc.2`: first published prerelease. Assets:
+  ZIP, TAR.GZ, and `SHA256SUMS.txt`.
+
 ## Future Package Options
 
 Only add these when there is a real need:
