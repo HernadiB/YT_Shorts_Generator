@@ -126,6 +126,9 @@ Rules:
 - Disallow force pushes.
 - Disallow branch deletion.
 - Prefer linear history.
+- Allow repository admins to bypass pull-request requirements only through a
+  PR merge when required self-review rules cannot be satisfied in this one-user
+  repository. Status checks should still be green before using this bypass.
 
 Implementation notes:
 
@@ -135,6 +138,9 @@ Implementation notes:
 - The classic branch protection endpoint was not usable for this user-owned
   repository because of `restrictions` payload validation. A repository ruleset
   was created instead.
+- The ruleset includes a PR-only repository-admin bypass so the owner can merge
+  green PRs when GitHub blocks self-review, without allowing direct force pushes
+  or branch deletion.
 
 ## GitHub Pages
 
@@ -257,6 +263,9 @@ Completed:
 - Fixed the Pages workflow after `actions/configure-pages` failed at the Pages
   site lookup step with a 404 despite Pages being enabled; the workflow now
   passes `enablement: true`.
+- Added a PR-only repository-admin bypass actor to the ruleset after GitHub
+  blocked a green owner-authored PR because the same user cannot approve their
+  own last push.
 - Deleted stale remote branch `chore/github-governance-pages` after PR #3 was
   merged; release/docs work now lives on `chore/release-packaging-docs`.
 
