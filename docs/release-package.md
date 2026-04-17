@@ -32,6 +32,9 @@ Recommended milestone mapping:
   `.env`, or local `config.json` in release assets.
 - Mark early releases as prereleases until the generation and upload workflow is
   stable.
+- If a prerelease tag triggers a failed workflow before a GitHub Release is
+  published, fix the workflow and publish the next prerelease tag instead of
+  rewriting public release history.
 
 ## Package Format
 
@@ -82,8 +85,8 @@ CodeQL runs on pushes, PRs, and manual dispatch to add another security check.
 ```powershell
 git switch master
 git pull
-git tag v0.1.0-rc.1
-git push origin v0.1.0-rc.1
+git tag v0.1.0-rc.2
+git push origin v0.1.0-rc.2
 ```
 
 4. Review the generated GitHub Release.
