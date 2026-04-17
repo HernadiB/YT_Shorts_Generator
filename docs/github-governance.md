@@ -119,9 +119,10 @@ Rules:
 - Dismiss stale approvals after new commits.
 - Require code owner review.
 - Require status checks to pass.
-- Require the static analysis check now.
-- Add package and CodeQL checks to the required list after those workflows are
-  merged to the protected branches.
+- Require these status checks:
+  - `Python syntax and static checks`
+  - `Build source package`
+  - `CodeQL analysis`
 - Require conversation resolution.
 - Disallow force pushes.
 - Disallow branch deletion.
@@ -129,6 +130,9 @@ Rules:
 - Allow repository admins to bypass pull-request requirements only through a
   PR merge when required self-review rules cannot be satisfied in this one-user
   repository. Status checks should still be green before using this bypass.
+- Keep merge commits enabled at repository level for controlled branch
+  promotion PRs, while normal feature PRs should still prefer focused squash
+  merges.
 
 Implementation notes:
 
@@ -141,6 +145,8 @@ Implementation notes:
 - The ruleset includes a PR-only repository-admin bypass so the owner can merge
   green PRs when GitHub blocks self-review, without allowing direct force pushes
   or branch deletion.
+- Package and CodeQL checks were added to the required status check list after
+  those workflows had passed on PRs and protected branches.
 
 ## GitHub Pages
 
@@ -266,6 +272,24 @@ Completed:
 - Added a PR-only repository-admin bypass actor to the ruleset after GitHub
   blocked a green owner-authored PR because the same user cannot approve their
   own last push.
+- Merged PR #16 to `development`; the next Pages deployment succeeded.
+- Closed issue #17 after the Pages deployment fix was verified.
+- Closed issue #5 after the private-first upload review checklist moved into
+  the split documentation.
+- Created PR #18 from `release/master-promotion` after PR #9 was dirty against
+  `master`; PR #18 kept the current `development` versions of `README.md` and
+  `AGENTS.md`, passed checks, and merged to `master`.
+- Closed PR #9 as superseded by PR #18.
+- Tagged `v0.1.0-rc.1`; the release workflow failed before publishing because
+  the version regex was over-escaped.
+- Merged PR #19 to fix release version validation, then PR #20 to promote that
+  fix to `master`.
+- Published GitHub Release `v0.1.0-rc.2` as a prerelease with ZIP, TAR.GZ, and
+  SHA256SUMS assets.
+- Closed issues #4 and #15 as completed.
+- Closed milestone `v0.1 Repository Governance`.
+- Added `Build source package` and `CodeQL analysis` to the protected branch
+  required status checks.
 - Deleted stale remote branch `chore/github-governance-pages` after PR #3 was
   merged; release/docs work now lives on `chore/release-packaging-docs`.
 
