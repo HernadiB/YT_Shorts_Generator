@@ -3,7 +3,8 @@
 ## CI
 
 GitHub Actions runs static analysis on `development`, `master`, and pull
-requests:
+requests. Package builds run on pull requests and on pushes to `development` and
+`master`.
 
 - Python syntax check with `compileall`
 - Ruff
@@ -69,5 +70,8 @@ Before committing:
 - Check `git status --short`.
 - Keep secrets and generated files ignored.
 - Do not add OAuth files or local config.
+- Keep local auth inventory in `.dev/auth.local.md` and keep temporary auth
+  scratch files under ignored paths such as `.dev/`, `.secrets/`, or
+  `auth.local.*`.
 - Do not commit generated media.
 - Prefer source-only release packages built from git-tracked files.

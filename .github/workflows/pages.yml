@@ -3,7 +3,7 @@ name: GitHub Pages
 on:
   push:
     branches:
-      - development
+      - master
   workflow_dispatch:
 
 permissions:

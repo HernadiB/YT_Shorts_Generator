@@ -7,6 +7,9 @@ token.json
 channel_token.json
 channel_state.json
 config.json
+auth.local.*
+*.local.auth
+.secrets/
 
 # Python
 __pycache__/

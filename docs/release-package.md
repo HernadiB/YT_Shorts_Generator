@@ -55,8 +55,9 @@ Package workflow:
 .github/workflows/package.yml
 ```
 
-The package workflow runs for PRs, pushes to `development`, and manual dispatch.
-It creates downloadable build artifacts without creating a GitHub Release.
+The package workflow runs for PRs, pushes to `development`, pushes to `master`,
+and manual dispatch. It creates downloadable build artifacts without creating a
+GitHub Release.
 
 Release workflow:
 
