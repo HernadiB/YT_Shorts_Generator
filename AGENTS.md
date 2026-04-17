@@ -416,4 +416,16 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   and `ollama`, actual `stop_dev.ps1` stopped both, `Get-Process` found no
   remaining `ollama*` processes, `netstat` found no `:11434` listener, and
   `http://localhost:11434/api/tags` was down afterward.
+- Follow-up fix: `start_dev.ps1` could time out even after Ollama had started
+  because the readiness check depended on PowerShell `Invoke-RestMethod` against
+  `localhost`. It now checks `/api/tags` through `curl.exe`/`Invoke-WebRequest`,
+  includes a `127.0.0.1` fallback for localhost, writes startup logs to
+  `.dev/ollama.stdout.log` and `.dev/ollama.stderr.log`, and avoids triggering
+  `ollama pull` when the model list cannot be verified.
+- Verification for the start follow-up: after stopping Ollama, `start_dev.ps1
+  -SkipChecks` started the server and confirmed `llama3.1:8b` through the HTTP
+  model list without pulling. The Codex shell environment did not preserve the
+  background server after the command returned, but the original user shell did
+  preserve `ollama.exe` after timeout, so the fixed readiness/model checks
+  address the reported interactive failure.
 - Unresolved questions: none.

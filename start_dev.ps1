@@ -16,6 +16,8 @@ $SetupScript = Join-Path $Root "setup_windows.ps1"
 $VenvPython = Join-Path $Root ".venv\Scripts\python.exe"
 $StateDir = Join-Path $Root ".dev"
 $StatePath = Join-Path $StateDir "services.json"
+$OllamaStdoutLog = Join-Path $StateDir "ollama.stdout.log"
+$OllamaStderrLog = Join-Path $StateDir "ollama.stderr.log"
 
 function Write-Step {
     param([string]$Message)
@@ -190,21 +192,208 @@ function Test-ProcessById {
     }
 }
 
+function Invoke-ProcessWithTimeout {
+    param(
+        [string]$FilePath,
+        [string[]]$Arguments,
+        [int]$Seconds = 10
+    )
+
+    if ($DryRun) {
+        return @{
+            ExitCode = $null
+            TimedOut = $false
+            Stdout = ""
+            Stderr = ""
+        }
+    }
+
+    New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
+    $id = [Guid]::NewGuid().ToString("N")
+    $stdoutPath = Join-Path $StateDir "process-$id.out"
+    $stderrPath = Join-Path $StateDir "process-$id.err"
+
+    try {
+        $process = Start-Process `
+            -FilePath $FilePath `
+            -ArgumentList $Arguments `
+            -WorkingDirectory $Root `
+            -NoNewWindow `
+            -PassThru `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+
+        if (-not $process.WaitForExit($Seconds * 1000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            return @{
+                ExitCode = $null
+                TimedOut = $true
+                Stdout = if (Test-Path $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { "" }
+                Stderr = if (Test-Path $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { "" }
+            }
+        }
+
+        $process.Refresh()
+        $exitCode = if ($process.HasExited) { $process.ExitCode } else { $null }
+
+        return @{
+            ExitCode = $exitCode
+            TimedOut = $false
+            Stdout = if (Test-Path $stdoutPath) { Get-Content -LiteralPath $stdoutPath -Raw } else { "" }
+            Stderr = if (Test-Path $stderrPath) { Get-Content -LiteralPath $stderrPath -Raw } else { "" }
+        }
+    } finally {
+        Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-OllamaHealthBaseUrls {
+    param([string]$BaseUrl)
+
+    $urls = New-Object System.Collections.Generic.List[string]
+    $urls.Add($BaseUrl.TrimEnd("/"))
+
+    try {
+        $uri = [Uri]$BaseUrl
+        if ($uri.Host -eq "localhost") {
+            $builder = [UriBuilder]$uri
+            $builder.Host = "127.0.0.1"
+            $urls.Add($builder.Uri.AbsoluteUri.TrimEnd("/"))
+        }
+    } catch {
+        return @($urls | Select-Object -Unique)
+    }
+
+    return @($urls | Select-Object -Unique)
+}
+
+function Test-OllamaHttpServer {
+    param([string]$BaseUrl)
+
+    foreach ($healthBaseUrl in Get-OllamaHealthBaseUrls -BaseUrl $BaseUrl) {
+        $tagsUrl = "$healthBaseUrl/api/tags"
+
+        if (Test-Command "curl.exe") {
+            $curl = Invoke-ProcessWithTimeout `
+                -FilePath "curl.exe" `
+                -Arguments @("--fail", "--silent", "--show-error", "--max-time", "5", $tagsUrl) `
+                -Seconds 7
+            if (-not $curl.TimedOut -and $curl.ExitCode -eq 0) {
+                return $true
+            }
+        }
+
+        try {
+            Invoke-WebRequest -Uri $tagsUrl -UseBasicParsing -TimeoutSec 5 | Out-Null
+            return $true
+        } catch {
+            continue
+        }
+    }
+
+    return $false
+}
+
 function Test-OllamaServer {
     param([string]$BaseUrl)
 
-    try {
-        Invoke-RestMethod -Uri "$BaseUrl/api/tags" -TimeoutSec 2 | Out-Null
-        return $true
-    } catch {
-        return $false
+    return (Test-OllamaHttpServer -BaseUrl $BaseUrl)
+}
+
+function Get-OllamaHttpModelResult {
+    param([string]$BaseUrl)
+
+    foreach ($healthBaseUrl in Get-OllamaHealthBaseUrls -BaseUrl $BaseUrl) {
+        $tagsUrl = "$healthBaseUrl/api/tags"
+
+        if (Test-Command "curl.exe") {
+            $curl = Invoke-ProcessWithTimeout `
+                -FilePath "curl.exe" `
+                -Arguments @("--fail", "--silent", "--show-error", "--max-time", "5", $tagsUrl) `
+                -Seconds 7
+            if (-not $curl.TimedOut -and $curl.ExitCode -eq 0) {
+                try {
+                    $json = $curl.Stdout | ConvertFrom-Json
+                    $models = @($json.models | ForEach-Object { [string]$_.name })
+                    return [pscustomobject]@{
+                        Succeeded = $true
+                        Models = $models
+                    }
+                } catch {
+                    Write-Warn "Could not parse Ollama model list from curl response"
+                }
+            }
+        }
+
+        try {
+            $response = Invoke-WebRequest -Uri $tagsUrl -UseBasicParsing -TimeoutSec 5
+            $json = $response.Content | ConvertFrom-Json
+            $models = @($json.models | ForEach-Object { [string]$_.name })
+            return [pscustomobject]@{
+                Succeeded = $true
+                Models = $models
+            }
+        } catch {
+            continue
+        }
     }
+
+    return [pscustomobject]@{
+        Succeeded = $false
+        Models = @()
+    }
+}
+
+function Get-OllamaProcesses {
+    return @(
+        Get-Process -ErrorAction SilentlyContinue |
+            Where-Object { $_.ProcessName -like "ollama*" } |
+            Sort-Object @{ Expression = { if ($_.ProcessName -eq "ollama app") { 0 } else { 1 } } }, ProcessName, Id
+    )
+}
+
+function Stop-StaleOllamaProcesses {
+    param([string]$Reason)
+
+    $processes = @(Get-OllamaProcesses)
+    if ($processes.Count -eq 0) {
+        return
+    }
+
+    Write-Warn $Reason
+    foreach ($process in $processes) {
+        if ($DryRun) {
+            Write-Host "DRY RUN would stop stale Ollama process $($process.Id) ($($process.ProcessName))"
+            continue
+        }
+
+        Write-Host "Stopping stale Ollama process $($process.Id) ($($process.ProcessName))"
+        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    }
+
+    if (-not $DryRun) {
+        Start-Sleep -Seconds 1
+    }
+}
+
+function Get-LogTail {
+    param(
+        [string]$Path,
+        [int]$Lines = 20
+    )
+
+    if (-not (Test-Path $Path)) {
+        return ""
+    }
+
+    return ((Get-Content -LiteralPath $Path -Tail $Lines) -join "`n").Trim()
 }
 
 function Wait-OllamaServer {
     param(
         [string]$BaseUrl,
-        [int]$Seconds
+        [int]$Seconds,
+        [object]$Process = $null
     )
 
     $deadline = (Get-Date).AddSeconds($Seconds)
@@ -212,10 +401,27 @@ function Wait-OllamaServer {
         if (Test-OllamaServer -BaseUrl $BaseUrl) {
             return
         }
+
+        if ($null -ne $Process -and $Process.HasExited) {
+            $stderrTail = Get-LogTail -Path $OllamaStderrLog
+            $stdoutTail = Get-LogTail -Path $OllamaStdoutLog
+            $logText = (($stderrTail, $stdoutTail) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join "`n"
+            if ([string]::IsNullOrWhiteSpace($logText)) {
+                $logText = "No Ollama log output was captured."
+            }
+            throw "Ollama exited before it became ready. Exit code: $($Process.ExitCode). Log tail:`n$logText"
+        }
+
         Start-Sleep -Seconds 1
     }
 
-    throw "Ollama did not become ready at $BaseUrl within $Seconds seconds."
+    $stderrTail = Get-LogTail -Path $OllamaStderrLog
+    $stdoutTail = Get-LogTail -Path $OllamaStdoutLog
+    $logText = (($stderrTail, $stdoutTail) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join "`n"
+    if ([string]::IsNullOrWhiteSpace($logText)) {
+        $logText = "No Ollama log output was captured."
+    }
+    throw "Ollama did not become ready at $BaseUrl within $Seconds seconds. Log tail:`n$logText"
 }
 
 function Invoke-Checked {
@@ -294,6 +500,10 @@ function Start-OllamaServer {
         return @{ StartedByScript = $false; Pid = $null }
     }
 
+    if (@(Get-OllamaProcesses).Count -gt 0) {
+        Stop-StaleOllamaProcesses -Reason "Ollama processes exist, but the health check failed. Restarting them."
+    }
+
     Write-Step "Starting Ollama server"
     if ($DryRun) {
         Write-Host "DRY RUN would start: ollama serve"
@@ -304,8 +514,18 @@ function Start-OllamaServer {
         throw "Ollama is not available in PATH. Run .\setup_windows.ps1, or install Ollama manually."
     }
 
-    $process = Start-Process -FilePath "ollama" -ArgumentList @("serve") -WindowStyle Hidden -PassThru
-    Wait-OllamaServer -BaseUrl $BaseUrl -Seconds $TimeoutSeconds
+    New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
+    Remove-Item -LiteralPath $OllamaStdoutLog, $OllamaStderrLog -Force -ErrorAction SilentlyContinue
+
+    $process = Start-Process `
+        -FilePath "ollama" `
+        -ArgumentList @("serve") `
+        -WindowStyle Hidden `
+        -PassThru `
+        -RedirectStandardOutput $OllamaStdoutLog `
+        -RedirectStandardError $OllamaStderrLog
+
+    Wait-OllamaServer -BaseUrl $BaseUrl -Seconds $TimeoutSeconds -Process $process
     Write-Ok "Ollama server started"
     return @{ StartedByScript = $true; Pid = $process.Id }
 }
@@ -316,18 +536,13 @@ function Test-OllamaModelPresent {
         [string]$Model
     )
 
-    try {
-        $response = Invoke-RestMethod -Uri "$BaseUrl/api/tags" -TimeoutSec 10
-        foreach ($item in $response.models) {
-            if ([string]$item.name -eq $Model) {
-                return $true
-            }
-        }
-    } catch {
-        Write-Warn "Could not read Ollama model list"
+    $modelResult = Get-OllamaHttpModelResult -BaseUrl $BaseUrl
+    if ($modelResult.Succeeded) {
+        return (@($modelResult.Models) -contains $Model)
     }
 
-    return $false
+    Write-Warn "Could not read Ollama model list"
+    return $null
 }
 
 function Ensure-OllamaModel {
@@ -346,8 +561,14 @@ function Ensure-OllamaModel {
         return
     }
 
-    if (Test-OllamaModelPresent -BaseUrl $BaseUrl -Model $Model) {
+    $modelPresent = Test-OllamaModelPresent -BaseUrl $BaseUrl -Model $Model
+    if ($modelPresent -eq $true) {
         Write-Ok "Ollama model $Model is available"
+        return
+    }
+
+    if ($null -eq $modelPresent) {
+        Write-Warn "Could not verify the Ollama model list; leaving model pull to setup_windows.ps1 or manual ollama pull"
         return
     }
 

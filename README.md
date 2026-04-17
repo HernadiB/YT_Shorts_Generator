@@ -167,6 +167,8 @@ What it does:
 - Pulls the configured `OLLAMA_MODEL` when it is missing, unless
   `-SkipModelPull` is used.
 - Writes runtime state to `.dev/services.json`, which is ignored by git.
+- Writes Ollama startup logs to `.dev/ollama.stdout.log` and
+  `.dev/ollama.stderr.log` when it starts the server.
 - Runs a quick Python syntax check unless `-SkipChecks` is used.
 
 Useful options:
