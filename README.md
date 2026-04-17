@@ -30,6 +30,11 @@ YT_Shorts_Generator/
 |-- channel_profile.json              # Public channel positioning and setup config
 |-- .env.example                      # Template for local .env
 |-- topics.txt                        # Topic pool for random generation
+|-- CONTRIBUTING.md                   # Development and review guidance
+|-- SECURITY.md                       # Security policy and private reporting guidance
+|-- docs/
+|   |-- index.html                    # GitHub Pages static site
+|   `-- github-governance.md          # GitHub rules and setup log
 |-- prompts/
 |   `-- system_prompt.txt             # Script and metadata prompt for the local LLM
 |-- assets/
@@ -50,6 +55,16 @@ YT_Shorts_Generator/
 ```
 
 Local-only files such as `.env`, `config.json`, `client_secret.json`, `token.json`, `channel_token.json`, `channel_state.json`, `.venv/`, `outputs/`, generated media, and voice assets should not be committed.
+
+## GitHub Governance
+
+Repository operating rules, labels, milestones, desired branch protection,
+GitHub Pages setup notes, project-board notes, and the applied setup log are
+recorded in:
+
+```text
+docs/github-governance.md
+```
 
 ## Prerequisites
 
