@@ -1298,6 +1298,10 @@ Quality requirements:
 - Fix grammar, word order, punctuation, agreement, awkward phrasing, and
   sentence fragments.
 - Make every sentence complete, natural, and easy to read aloud.
+- Use precise grammar with clear subjects and verbs. Replace vague "this",
+  "that", or "it" when the reference could be unclear.
+- Prefer active voice and direct sentence structure. Do not bury the main idea
+  in long dependent clauses.
 - Keep the script professionally simple: precise, but understandable.
 - Do not introduce technical claims that need current market data, tax/legal
   advice, guarantees, stock picks, or investment recommendations.
@@ -1312,6 +1316,16 @@ Quality requirements:
   that mechanism is actually explained in the script.
 - Correct finance terminology. If a technical term appears, explain it in plain
   English immediately.
+- Technical finance terms must be both correct and pronounceable. Introduce the
+  full term first, then a simple translation.
+- For acronyms that should be read letter by letter, write spaced letters in
+  the spoken script: "E T F", "A P R", "C P I", "I R A", "R O I", and
+  "F D I C". Do not write "ETF", "APR", "CPI", "IRA", "ROI", or "FDIC" in the
+  spoken script.
+- Avoid plural acronym forms in the spoken script, such as "ETFs". Use "E T F"
+  as an adjective or rewrite the phrase, for example "funds like this".
+- Avoid parentheses, slashes, dense hyphenated terms, and ticker-like notation
+  in the spoken script. Write the phrase the way a human should say it.
 - Keep one financial mechanism only. Remove side topics that muddy the logic.
 - Keep the hook sharp, but do not use clickbait, fake urgency, or vague hype.
 - Keep the spoken script between 105 and 145 words when possible.
@@ -1335,6 +1349,9 @@ Quality requirements:
 - Return only the keys in the JSON schema below. Do not add extra keys.
 - Put every word that should be narrated inside the script field. Do not place
   spoken narration in any other field.
+- The script must end with this exact final sentence: "Follow for more
+  practical money tips."
+- Do not use the word "advice" in the CTA.
 
 Return valid JSON only in this exact schema:
 {{
@@ -1480,6 +1497,8 @@ The script must:
 - keep attention in the first 2 seconds
 - explain one concept clearly
 - explain one finance mechanism, not a list of generic tips
+- use precise grammar with clear subjects, active voice, and no vague pronouns
+- make professional finance terms pronounceable in TTS and readable in captions
 - include one tiny number example or concrete wallet-level scenario
 - make every economic claim logically true and financially coherent
 - avoid invented background facts, market averages, typical rates, and
@@ -1487,7 +1506,9 @@ The script must:
 - name one precise finance term only if it is translated into plain English
 - write numbers, percentages, and currencies exactly as they should be spoken
 - keep any loan, APR, payment, term, and interest figures internally consistent
-- end with a short CTA
+- write letter-by-letter acronyms as spaced letters in the spoken script, such
+  as "E T F" and "A P R", not "ETF" or "APR"
+- end with the exact sentence: "Follow for more practical money tips."
 - put every narrated word inside the script field
 - return only the JSON keys requested below
 

@@ -1,6 +1,6 @@
 # Agent Project Context
 
-Last updated: 2026-04-15
+Last updated: 2026-04-17
 
 Use this file as the first-read project summary for future coding sessions.
 When the user asks to update the project/session context, append a concise entry
@@ -217,6 +217,13 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Spoken script text is normalized before TTS so finance notation reads
   naturally: `$1,000` -> `one thousand dollars`, `4%` -> `four percent`,
   `$1.50` -> `one dollar and fifty cents`, and `401(k)` -> `four oh one k`.
+- Prompt guidance requires pronounceable finance terminology in the spoken
+  script: acronyms that should be read letter by letter should be written as
+  spaced letters, such as `E T F` and `A P R`, while titles/tags may keep
+  standard acronym spelling.
+- Every generated script should end with the exact CTA `Follow for more
+  practical money tips.` Avoid using `advice` in the CTA because the channel
+  disclaimer says `Not financial advice.`
 - WhisperX supplies caption timings, but caption text is aligned back to the
   approved script before chunking. This keeps visible captions from inheriting
   ASR slips such as `low` becoming `loan`.
@@ -373,3 +380,52 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Added a render tail padding config so the final scene extends past the voice
   track before FFmpeg applies `-shortest`; this prevents end-of-video narration
   clipping.
+- Tightened prompt and review wording for language quality: clearer grammar,
+  active voice, fewer vague pronouns, TTS-friendly professional terms, and a
+  mandatory final CTA asking viewers to follow for more practical money tips.
+
+### 2026-04-17
+
+- Added daily development environment scripts without duplicating the existing
+  Windows installer/bootstrap flow: `start_dev.ps1` delegates missing baseline
+  setup to `setup_windows.ps1`, loads `.env`, starts/tracks Ollama, checks the
+  configured model, and runs a quick Python syntax check.
+- Added `stop_dev.ps1` to stop only the Ollama process tracked as started by
+  this project by default, with an explicit `-ForceAllOllama` option for
+  stopping every local Ollama process.
+- Updated `.gitignore` to ignore `.dev/` runtime service state.
+- Updated `README.md` with the new development-session workflow and PowerShell
+  execution-policy bypass example.
+- Verification: parsed both PowerShell scripts with
+  `[System.Management.Automation.Language.Parser]::ParseFile`, ran
+  `python -m compileall -q generate_short.py run_pipeline.py setup_channel.py
+  upload_youtube.py test_voice.py`, `ruff check .`, `bandit -q -r .
+  --severity-level medium --confidence-level high -x
+  ./.git,./.venv,./outputs,./voices,./assets/music`, and `start_dev.ps1` /
+  `stop_dev.ps1` dry runs via
+  `powershell -NoProfile -ExecutionPolicy Bypass -File`.
+- Direct `.\start_dev.ps1` / `.\stop_dev.ps1` execution was blocked by the
+  local PowerShell execution policy, so the README documents the bypass path.
+- Follow-up fix: `stop_dev.ps1` originally left Ollama running when no
+  `.dev/services.json` state file existed or when Ollama had been started
+  before `start_dev.ps1`; it now stops local `ollama app.exe` and `ollama.exe`
+  processes by default because the tray app can respawn the server, with
+  `-KeepExternalOllama` available to preserve externally started Ollama.
+- Updated `README.md` to reflect the new shutdown behavior.
+- Verification for the follow-up: `stop_dev.ps1 -DryRun` saw both `ollama app`
+  and `ollama`, actual `stop_dev.ps1` stopped both, `Get-Process` found no
+  remaining `ollama*` processes, `netstat` found no `:11434` listener, and
+  `http://localhost:11434/api/tags` was down afterward.
+- Follow-up fix: `start_dev.ps1` could time out even after Ollama had started
+  because the readiness check depended on PowerShell `Invoke-RestMethod` against
+  `localhost`. It now checks `/api/tags` through `curl.exe`/`Invoke-WebRequest`,
+  includes a `127.0.0.1` fallback for localhost, writes startup logs to
+  `.dev/ollama.stdout.log` and `.dev/ollama.stderr.log`, and avoids triggering
+  `ollama pull` when the model list cannot be verified.
+- Verification for the start follow-up: after stopping Ollama, `start_dev.ps1
+  -SkipChecks` started the server and confirmed `llama3.1:8b` through the HTTP
+  model list without pulling. The Codex shell environment did not preserve the
+  background server after the command returned, but the original user shell did
+  preserve `ollama.exe` after timeout, so the fixed readiness/model checks
+  address the reported interactive failure.
+- Unresolved questions: none.
