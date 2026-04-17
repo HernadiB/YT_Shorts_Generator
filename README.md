@@ -117,8 +117,8 @@ python run_pipeline.py --topic "ETF basics" --upload --privacy private
 Create a release tag:
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.0-rc.2
+git push origin v0.1.0-rc.2
 ```
 
 ## Operating Standard

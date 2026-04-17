@@ -7,7 +7,9 @@ already applied to `HernadiB/YT_Shorts_Generator`.
 
 ## Repository Operating Rules
 
-- Treat `development` as the default development branch.
+- Treat `master` as the GitHub default branch and stable release branch.
+- Use `development` as the integration branch for work that is not ready for a
+  stable release.
 - Use pull requests for non-trivial changes.
 - Keep each PR focused on one change set.
 - Assign every PR to `HernadiB` until more maintainers exist.
@@ -18,6 +20,8 @@ already applied to `HernadiB/YT_Shorts_Generator`.
   the PR carrying the work.
 - Do not commit generated media, local config, OAuth tokens, API keys, or
   credential files.
+- Keep local auth inventory and any temporary auth scratch files in ignored
+  paths such as `.dev/`, `.secrets/`, or `auth.local.*`.
 - Run static checks before review:
 
 ```powershell
@@ -160,10 +164,43 @@ Current state:
 - GitHub Pages is enabled with workflow deployments.
 - URL: `https://hernadib.github.io/YT_Shorts_Generator/`
 - HTTPS is enforced.
-- The Pages workflow publishes from `development`.
+- The Pages workflow publishes from `master`.
 - The workflow uses `actions/configure-pages` with `enablement: true` so the
   deployment can create or repair the Actions-backed Pages configuration when
   GitHub returns a Pages site lookup as not found.
+
+## MCP And Cloud Agent
+
+Use MCP servers only when they materially improve a task.
+
+Current state:
+
+- This local Codex session has no configured MCP resources or resource
+  templates.
+- GitHub Copilot coding agent has built-in MCP support for GitHub and browser
+  automation, so do not add a third-party MCP server unless a concrete project
+  task needs it.
+- Any new MCP server must have a narrow purpose, minimal permissions, and a
+  documented auth path before it is enabled.
+
+References:
+
+- `https://docs.github.com/en/copilot/concepts/coding-agent/mcp-and-coding-agent`
+- `https://docs.github.com/en/copilot/how-tos/use-copilot-agents/coding-agent/extend-coding-agent-with-mcp`
+
+## Local Auth Inventory
+
+Local auth files are intentionally untracked:
+
+- `.dev/auth.local.md`: local inventory of auth sources used during agent work.
+- `.dev/*.local.env`: optional local environment files for temporary tokens if
+  the user explicitly wants to manage them outside Git Credential Manager.
+- `.secrets/`: local scratch area for credentials that must never be committed.
+
+The GitHub API work in this repository uses the existing Git Credential Manager
+credential for `github.com` and exports it only into the current shell as
+`GH_TOKEN`. The token value is not copied into project documentation or tracked
+files.
 
 ## GitHub Projects
 
@@ -213,6 +250,8 @@ Completed:
   tracked secret-like patterns.
 - Made the repository public so GitHub Pages and branch/ruleset protection can
   be enabled without a paid private-repo plan.
+- Changed the GitHub default branch from `development` to `master`.
+- Updated local `origin/HEAD` to resolve to `master`.
 - Created branch `chore/github-governance-pages`.
 - Added CODEOWNERS, PR template, issue templates, Dependabot, Pages workflow,
   contributing guide, security policy, and static Pages site.
@@ -290,6 +329,8 @@ Completed:
 - Closed milestone `v0.1 Repository Governance`.
 - Added `Build source package` and `CodeQL analysis` to the protected branch
   required status checks.
+- Updated Pages publishing and public documentation links to use `master`.
+- Recorded the MCP/cloud-agent policy and local auth inventory path.
 - Deleted stale remote branch `chore/github-governance-pages` after PR #3 was
   merged; release/docs work now lives on `chore/release-packaging-docs`.
 
