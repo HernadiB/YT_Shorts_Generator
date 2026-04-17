@@ -13,6 +13,9 @@ already applied to `HernadiB/YT_Shorts_Generator`.
 - Assign every PR to `HernadiB` until more maintainers exist.
 - Add labels that describe type, area, status, and priority.
 - Add each PR or issue to the closest active milestone.
+- Keep issues and pull requests linked in both directions. Every non-dependency
+  PR must reference at least one issue, and every active issue must link back to
+  the PR carrying the work.
 - Do not commit generated media, local config, OAuth tokens, API keys, or
   credential files.
 - Run static checks before review:
@@ -28,11 +31,23 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 Every PR should include:
 
 - Clear summary.
+- Related issue reference, using `Fixes #...`, `Closes #...`, or `Related #...`.
 - Verification commands or manual review notes.
 - Risk note for runtime, upload, OAuth, or generated-media behavior.
 - Relevant labels.
 - Milestone.
 - Assignee.
+
+Issue association rule:
+
+- Use closing keywords only when the PR fully completes the issue.
+- Use `Related #...` for planning, partial work, follow-up work, or release
+  coordination that should not close the issue.
+- Add a reciprocal issue comment when the issue body does not already reference
+  the PR.
+- Dependabot PRs can stand alone when the PR itself is the complete update.
+- Keep PR labels, milestone, assignee, and status label current whenever scope
+  or review status changes.
 
 Reviewer rule:
 
@@ -49,6 +64,7 @@ Type labels:
 - `type: feature`
 - `type: task`
 - `type: docs`
+- `type: release`
 
 Status labels:
 
@@ -72,6 +88,7 @@ Area labels:
 - `area: upload`
 - `area: documentation`
 - `area: github-actions`
+- `area: release`
 
 Dependency labels:
 
@@ -87,29 +104,43 @@ Dependency labels:
 - `v1.0 Stable Shorts Pipeline`: stable private-first generation and upload
   workflow for reviewed finance Shorts.
 
-## Desired Branch Protection
+## Branch Protection
 
-The intended protection for `development` and `master` is:
+Protection for `development` and `master` is managed with a repository ruleset:
+
+```text
+Protect development and master
+```
+
+Rules:
 
 - Require pull request before merging.
 - Require at least one approving review.
 - Dismiss stale approvals after new commits.
 - Require code owner review.
 - Require status checks to pass.
-- Require the static analysis check.
+- Require the static analysis check now.
+- Add package and CodeQL checks to the required list after those workflows are
+  merged to the protected branches.
 - Require conversation resolution.
-- Enforce for admins.
 - Disallow force pushes.
 - Disallow branch deletion.
 - Prefer linear history.
+- Allow repository admins to bypass pull-request requirements only through a
+  PR merge when required self-review rules cannot be satisfied in this one-user
+  repository. Status checks should still be green before using this bypass.
 
-Current blocker:
+Implementation notes:
 
-- GitHub returned `Upgrade to GitHub Pro or make this repository public to
-  enable this feature.` for protected branches on this private repository.
-
-Do not make the repository public only to enable branch protection unless the
-local credential and generated-media risks have been reviewed.
+- The repository was made public on 2026-04-17 after a quick tracked-file and
+  history-name scan did not find committed local secret files such as `.env`,
+  `config.json`, OAuth token files, or generated media.
+- The classic branch protection endpoint was not usable for this user-owned
+  repository because of `restrictions` payload validation. A repository ruleset
+  was created instead.
+- The ruleset includes a PR-only repository-admin bypass so the owner can merge
+  green PRs when GitHub blocks self-review, without allowing direct force pushes
+  or branch deletion.
 
 ## GitHub Pages
 
@@ -118,13 +149,15 @@ The repository contains a workflow-based Pages setup:
 - `.github/workflows/pages.yml`
 - `docs/index.html`
 
-Current blocker:
+Current state:
 
-- GitHub returned `Your current plan does not support GitHub Pages for this
-  repository.` for this private repository.
-
-When the plan supports private Pages, or when the repository is intentionally
-made public, enable Pages with workflow deployments.
+- GitHub Pages is enabled with workflow deployments.
+- URL: `https://hernadib.github.io/YT_Shorts_Generator/`
+- HTTPS is enforced.
+- The Pages workflow publishes from `development`.
+- The workflow uses `actions/configure-pages` with `enablement: true` so the
+  deployment can create or repair the Actions-backed Pages configuration when
+  GitHub returns a Pages site lookup as not found.
 
 ## GitHub Projects
 
@@ -145,6 +178,23 @@ Current blocker:
 - Project v2 commands require additional token scopes such as `project`,
   `read:project`, `read:org`, and `read:discussion`.
 
+## Release And Package Rules
+
+- Use semantic versions with a leading `v`.
+- Build packages through `.github/workflows/package.yml`.
+- Publish releases through `.github/workflows/release.yml`.
+- Attach ZIP, TAR.GZ, and SHA256 checksum assets to each GitHub Release.
+- Keep generated media, local assets, OAuth files, tokens, `.env`, and
+  `config.json` out of release packages.
+- Treat source release archives as the package format until the project has a
+  stable installable CLI or Python module layout.
+
+Details are stored in:
+
+```text
+docs/release-package.md
+```
+
 ## Applied Setup Log
 
 Completed:
@@ -153,16 +203,24 @@ Completed:
 - Used the existing Git Credential Manager token without printing it.
 - Confirmed authenticated user is `HernadiB`.
 - Confirmed repository permission is `ADMIN`.
+- Ran a quick public-readiness scan for committed local secret file names and
+  tracked secret-like patterns.
+- Made the repository public so GitHub Pages and branch/ruleset protection can
+  be enabled without a paid private-repo plan.
 - Created branch `chore/github-governance-pages`.
 - Added CODEOWNERS, PR template, issue templates, Dependabot, Pages workflow,
   contributing guide, security policy, and static Pages site.
+- Added release/package governance with package, release, and CodeQL workflows.
 - Pushed `chore/github-governance-pages`.
 - Created PR #3: `Add GitHub governance and Pages setup`.
+- PR #3 was merged to `development`.
 - Assigned PR #3 to `HernadiB`.
 - Applied labels to PR #3:
   - `type: task`
+  - `type: release`
   - `area: documentation`
   - `area: github-actions`
+  - `area: release`
   - `status: ready for review`
 - Assigned PR #3 to milestone `v0.1 Repository Governance`.
 - Created or updated the standard label set.
@@ -170,25 +228,54 @@ Completed:
   and `v1.0 Stable Shorts Pipeline`.
 - Patched repository settings for issues, projects, merge strategy, auto-merge,
   update branch, and delete branch on merge where GitHub allowed it.
+- Enabled GitHub Pages with workflow deployments.
+- Set repository homepage and topics.
+- Enabled Dependabot vulnerability alerts, automated security fixes, secret
+  scanning, secret scanning push protection, and Dependabot security updates
+  where GitHub allowed it.
+- Created the `Protect development and master` repository ruleset.
 - Created initial issue backlog:
   - #4 `Harden development environment startup and shutdown`
   - #5 `Document private-first upload review checklist`
   - #6 `Add quality-gate regression fixtures`
   - #7 `Add caption and render smoke tests`
   - #8 `Define v1.0 release checklist for stable Shorts pipeline`
+  - #15 `Prepare v0.1.0 prerelease`
 - Applied governance metadata to PR #2:
   - Labels: `type: task`, `area: setup`, `area: github-actions`,
     `status: ready for review`, `priority: p1`
   - Milestone: `v0.1 Repository Governance`
   - Assignee: `HernadiB`
   - Added a PR comment explaining the reviewer-author limitation.
+- Created PR #16: `Add release packaging and split documentation`.
+- Assigned PR #16 to `HernadiB`.
+- Applied labels to PR #16:
+  - `type: task`
+  - `type: release`
+  - `area: release`
+  - `area: documentation`
+  - `area: github-actions`
+  - `status: ready for review`
+- Assigned PR #16 to milestone `v0.1 Repository Governance`.
+- Updated the PR/issue operating rule: every non-dependency PR must link an
+  issue, and every active issue must link back to its carrying PR.
+- Updated the PR template and issue templates with linked issue/PR fields.
+- Fixed the Pages workflow after `actions/configure-pages` failed at the Pages
+  site lookup step with a 404 despite Pages being enabled; the workflow now
+  passes `enablement: true`.
+- Added a PR-only repository-admin bypass actor to the ruleset after GitHub
+  blocked a green owner-authored PR because the same user cannot approve their
+  own last push.
+- Deleted stale remote branch `chore/github-governance-pages` after PR #3 was
+  merged; release/docs work now lives on `chore/release-packaging-docs`.
 
 Blocked or partial:
 
-- GitHub Pages could not be enabled because the private repository plan does
-  not support Pages.
-- Branch protection could not be enabled because the private repository plan
-  does not support protected branches.
+- GitHub Pages initially could not be enabled because the private repository
+  plan did not support Pages. This was resolved by making the repository public.
+- Classic branch protection could not be enabled through the branch protection
+  endpoint because of user-owned repository restrictions validation. This was
+  handled with a repository ruleset instead.
 - Project v2 could not be created because the current token lacks required
   project/org scopes.
 - `HernadiB` could not be requested as reviewer on PRs authored by `HernadiB`

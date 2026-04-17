@@ -17,6 +17,12 @@ body:
     validations:
       required: true
   - type: textarea
+    id: linked_pr
+    attributes:
+      label: Linked Pull Request
+      description: Link the PR that carries this issue. Use `TBD` only during initial triage.
+      placeholder: "Related PR: #"
+  - type: textarea
     id: steps
     attributes:
       label: Steps To Reproduce

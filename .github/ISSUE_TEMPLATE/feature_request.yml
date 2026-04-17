@@ -19,6 +19,12 @@ body:
       description: Describe the smallest useful version of the change.
     validations:
       required: true
+  - type: textarea
+    id: linked_pr
+    attributes:
+      label: Linked Pull Request
+      description: Link the PR that carries this issue. Use `TBD` only during initial triage.
+      placeholder: "Related PR: #"
   - type: dropdown
     id: area
     attributes:

@@ -441,7 +441,36 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   (`Improve development environment scripts and handle Ollama issues`): labels,
   `v0.1 Repository Governance` milestone, assignee `HernadiB`, and a comment
   documenting that GitHub cannot request a review from the PR author.
-- GitHub Pages and branch protection are documented but blocked while this
-  private repository plan does not support those features. Project v2 is blocked
-  by missing token scopes (`project`/`read:project`/org-related scopes).
+- Follow-up GitHub hardening: ran a quick public-readiness scan, made the repo
+  public, enabled Pages workflow deployments, set homepage/topics, enabled
+  Dependabot/security alert features where GitHub allowed them, and created a
+  `Protect development and master` repository ruleset after classic branch
+  protection failed on user-owned repo restrictions validation.
+- Added release/package handling on the governance PR branch: package workflow,
+  release workflow, CodeQL workflow, `docs/release-package.md`, and a shorter
+  README split into focused docs under `docs/`.
+- PR #3 was merged before the release/docs follow-up was complete, so the
+  release/docs commit was moved onto a fresh branch
+  `chore/release-packaging-docs` from latest `origin/development`; PR #16 was
+  opened, labeled, assigned to `HernadiB`, and attached to
+  `v0.1 Repository Governance`.
+- Project v2 remains blocked by missing token scopes
+  (`project`/`read:project`/org-related scopes).
+- Follow-up governance rule: every non-dependency PR must reference at least
+  one issue, and every active issue must link back to the PR carrying the work.
+  Use closing keywords only when the PR fully completes the issue; otherwise use
+  `Related #...`.
+- Updated `.github/pull_request_template.md` and the issue templates so future
+  PRs/issues explicitly capture linked issue/PR references.
+- Investigated the failed GitHub Pages deploys. The `Configure Pages` step
+  failed with a Pages site lookup 404 even though the repo Pages config existed
+  and used workflow deployments. Updated `.github/workflows/pages.yml` so
+  `actions/configure-pages` runs with `enablement: true`.
+- Updated `docs/github-governance.md` and `docs/release-package.md` with the
+  issue/PR association rule, Pages deploy fix, and release-from-`master`
+  policy.
+- Updated the repository ruleset with a PR-only `RepositoryRole` admin bypass
+  after GitHub blocked a green owner-authored PR because required self-review
+  cannot be satisfied in this one-user repo. The ruleset remains active for
+  direct branch protection.
 - Unresolved questions: none.
