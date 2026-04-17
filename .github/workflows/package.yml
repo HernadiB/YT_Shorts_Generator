@@ -1,0 +1,55 @@
+name: Package
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - development
+      - master
+  push:
+    branches:
+      - development
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-package:
+    name: Build source package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set package version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="dev-${GITHUB_SHA::7}"
+          fi
+          echo "PACKAGE_VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Build source archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          prefix="finance-shorts-factory-${PACKAGE_VERSION}/"
+          git archive --format=zip --prefix="$prefix" HEAD -o "dist/finance-shorts-factory-${PACKAGE_VERSION}.zip"
+          git archive --format=tar.gz --prefix="$prefix" HEAD -o "dist/finance-shorts-factory-${PACKAGE_VERSION}.tar.gz"
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-shorts-factory-${{ env.PACKAGE_VERSION }}
+          path: dist/
+          if-no-files-found: error

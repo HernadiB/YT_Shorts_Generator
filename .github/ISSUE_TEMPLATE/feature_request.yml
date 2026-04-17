@@ -1,0 +1,44 @@
+name: Feature Request
+description: Propose a focused improvement to the Shorts factory.
+title: "[Feature]: "
+labels:
+  - "type: feature"
+  - "status: triage"
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow or quality issue should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Describe the smallest useful version of the change.
+    validations:
+      required: true
+  - type: textarea
+    id: linked_pr
+    attributes:
+      label: Linked Pull Request
+      description: Link the PR that carries this issue. Use `TBD` only during initial triage.
+      placeholder: "Related PR: #"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - developer tooling
+        - content strategy
+        - script generation
+        - quality gate
+        - TTS
+        - captions
+        - rendering
+        - upload
+        - channel setup
+        - documentation
+    validations:
+      required: true
