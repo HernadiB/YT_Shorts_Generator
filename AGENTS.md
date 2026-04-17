@@ -456,4 +456,17 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   `v0.1 Repository Governance`.
 - Project v2 remains blocked by missing token scopes
   (`project`/`read:project`/org-related scopes).
+- Follow-up governance rule: every non-dependency PR must reference at least
+  one issue, and every active issue must link back to the PR carrying the work.
+  Use closing keywords only when the PR fully completes the issue; otherwise use
+  `Related #...`.
+- Updated `.github/pull_request_template.md` and the issue templates so future
+  PRs/issues explicitly capture linked issue/PR references.
+- Investigated the failed GitHub Pages deploys. The `Configure Pages` step
+  failed with a Pages site lookup 404 even though the repo Pages config existed
+  and used workflow deployments. Updated `.github/workflows/pages.yml` so
+  `actions/configure-pages` runs with `enablement: true`.
+- Updated `docs/github-governance.md` and `docs/release-package.md` with the
+  issue/PR association rule, Pages deploy fix, and release-from-`master`
+  policy.
 - Unresolved questions: none.

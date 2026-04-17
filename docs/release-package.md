@@ -24,8 +24,9 @@ Recommended milestone mapping:
 ## Release Rules
 
 - Release from reviewed and merged code.
-- Prefer tags from `development` until `master` becomes the stable release
-  branch.
+- Merge `development` into `master` through a reviewed PR before tagging a
+  release.
+- Create release tags from `master`.
 - Run static analysis before a release.
 - Do not include generated media, local voice assets, OAuth files, token files,
   `.env`, or local `config.json` in release assets.
@@ -79,10 +80,10 @@ CodeQL runs on pushes, PRs, and manual dispatch to add another security check.
 3. Create and push a tag:
 
 ```powershell
-git switch development
+git switch master
 git pull
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.0-rc.1
+git push origin v0.1.0-rc.1
 ```
 
 4. Review the generated GitHub Release.

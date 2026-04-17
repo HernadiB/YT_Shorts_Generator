@@ -13,6 +13,9 @@ already applied to `HernadiB/YT_Shorts_Generator`.
 - Assign every PR to `HernadiB` until more maintainers exist.
 - Add labels that describe type, area, status, and priority.
 - Add each PR or issue to the closest active milestone.
+- Keep issues and pull requests linked in both directions. Every non-dependency
+  PR must reference at least one issue, and every active issue must link back to
+  the PR carrying the work.
 - Do not commit generated media, local config, OAuth tokens, API keys, or
   credential files.
 - Run static checks before review:
@@ -28,11 +31,23 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 Every PR should include:
 
 - Clear summary.
+- Related issue reference, using `Fixes #...`, `Closes #...`, or `Related #...`.
 - Verification commands or manual review notes.
 - Risk note for runtime, upload, OAuth, or generated-media behavior.
 - Relevant labels.
 - Milestone.
 - Assignee.
+
+Issue association rule:
+
+- Use closing keywords only when the PR fully completes the issue.
+- Use `Related #...` for planning, partial work, follow-up work, or release
+  coordination that should not close the issue.
+- Add a reciprocal issue comment when the issue body does not already reference
+  the PR.
+- Dependabot PRs can stand alone when the PR itself is the complete update.
+- Keep PR labels, milestone, assignee, and status label current whenever scope
+  or review status changes.
 
 Reviewer rule:
 
@@ -133,8 +148,10 @@ Current state:
 - GitHub Pages is enabled with workflow deployments.
 - URL: `https://hernadib.github.io/YT_Shorts_Generator/`
 - HTTPS is enforced.
-- The Pages workflow will publish after the workflow is merged to
-  `development`.
+- The Pages workflow publishes from `development`.
+- The workflow uses `actions/configure-pages` with `enablement: true` so the
+  deployment can create or repair the Actions-backed Pages configuration when
+  GitHub returns a Pages site lookup as not found.
 
 ## GitHub Projects
 
@@ -234,6 +251,12 @@ Completed:
   - `area: github-actions`
   - `status: ready for review`
 - Assigned PR #16 to milestone `v0.1 Repository Governance`.
+- Updated the PR/issue operating rule: every non-dependency PR must link an
+  issue, and every active issue must link back to its carrying PR.
+- Updated the PR template and issue templates with linked issue/PR fields.
+- Fixed the Pages workflow after `actions/configure-pages` failed at the Pages
+  site lookup step with a 404 despite Pages being enabled; the workflow now
+  passes `enablement: true`.
 - Deleted stale remote branch `chore/github-governance-pages` after PR #3 was
   merged; release/docs work now lives on `chore/release-packaging-docs`.
 
