@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report a reproducible problem in generation, rendering, setup, or upload.
+title: "[Bug]: "
+labels:
+  - "type: bug"
+  - "status: triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste OAuth tokens, API keys, local credentials, or generated media that contains private information.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What failed, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps To Reproduce
+      description: Include the command and the smallest topic/config detail needed to reproduce it.
+      placeholder: |
+        1. Run `python run_pipeline.py --topic "..."`
+        2. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Paste short, sanitized logs only. Do not include secrets or tokens.
+      render: text
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - setup
+        - script generation
+        - quality gate
+        - TTS
+        - captions
+        - rendering
+        - upload
+        - channel setup
+        - documentation
+    validations:
+      required: true

@@ -428,4 +428,20 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   background server after the command returned, but the original user shell did
   preserve `ollama.exe` after timeout, so the fixed readiness/model checks
   address the reported interactive failure.
+- Added GitHub governance setup on branch `chore/github-governance-pages`:
+  CODEOWNERS, PR template, issue templates, Dependabot config, Pages workflow,
+  `CONTRIBUTING.md`, `SECURITY.md`, `docs/index.html`, and
+  `docs/github-governance.md`.
+- Created PR #3 (`Add GitHub governance and Pages setup`) and applied
+  governance metadata: labels, `v0.1 Repository Governance` milestone, and
+  assignee `HernadiB`.
+- Created or updated the standard label set, milestones, repo settings, and
+  initial issue backlog (#4 through #8).
+- Applied the same governance metadata to the pre-existing PR #2
+  (`Improve development environment scripts and handle Ollama issues`): labels,
+  `v0.1 Repository Governance` milestone, assignee `HernadiB`, and a comment
+  documenting that GitHub cannot request a review from the PR author.
+- GitHub Pages and branch protection are documented but blocked while this
+  private repository plan does not support those features. Project v2 is blocked
+  by missing token scopes (`project`/`read:project`/org-related scopes).
 - Unresolved questions: none.

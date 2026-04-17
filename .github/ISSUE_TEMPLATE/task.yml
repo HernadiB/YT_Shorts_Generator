@@ -1,0 +1,25 @@
+name: Engineering Task
+description: Track implementation, cleanup, verification, or release work.
+title: "[Task]: "
+labels:
+  - "type: task"
+  - "status: triage"
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired Outcome
+      description: What should be true when this task is done?
+    validations:
+      required: true
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      value: |
+        - [ ] 
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Commands, generated-video review steps, or GitHub checks required.
