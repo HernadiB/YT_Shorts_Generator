@@ -24,6 +24,7 @@ env/
 # Generated media and local assets
 outputs/
 voices/
+.dev/
 *.wav
 *.mp3
 *.mp4

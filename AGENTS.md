@@ -1,6 +1,6 @@
 # Agent Project Context
 
-Last updated: 2026-04-15
+Last updated: 2026-04-17
 
 Use this file as the first-read project summary for future coding sessions.
 When the user asks to update the project/session context, append a concise entry
@@ -383,3 +383,27 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Tightened prompt and review wording for language quality: clearer grammar,
   active voice, fewer vague pronouns, TTS-friendly professional terms, and a
   mandatory final CTA asking viewers to follow for more practical money tips.
+
+### 2026-04-17
+
+- Added daily development environment scripts without duplicating the existing
+  Windows installer/bootstrap flow: `start_dev.ps1` delegates missing baseline
+  setup to `setup_windows.ps1`, loads `.env`, starts/tracks Ollama, checks the
+  configured model, and runs a quick Python syntax check.
+- Added `stop_dev.ps1` to stop only the Ollama process tracked as started by
+  this project by default, with an explicit `-ForceAllOllama` option for
+  stopping every local Ollama process.
+- Updated `.gitignore` to ignore `.dev/` runtime service state.
+- Updated `README.md` with the new development-session workflow and PowerShell
+  execution-policy bypass example.
+- Verification: parsed both PowerShell scripts with
+  `[System.Management.Automation.Language.Parser]::ParseFile`, ran
+  `python -m compileall -q generate_short.py run_pipeline.py setup_channel.py
+  upload_youtube.py test_voice.py`, `ruff check .`, `bandit -q -r .
+  --severity-level medium --confidence-level high -x
+  ./.git,./.venv,./outputs,./voices,./assets/music`, and `start_dev.ps1` /
+  `stop_dev.ps1` dry runs via
+  `powershell -NoProfile -ExecutionPolicy Bypass -File`.
+- Direct `.\start_dev.ps1` / `.\stop_dev.ps1` execution was blocked by the
+  local PowerShell execution policy, so the README documents the bypass path.
+- Unresolved questions: none.

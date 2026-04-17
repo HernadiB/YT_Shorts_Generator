@@ -23,6 +23,8 @@ YT_Shorts_Generator/
 |-- setup_channel.py                  # Apply channel branding, playlists, and sections
 |-- test_voice.py                     # Quick Piper voice test
 |-- setup_windows.ps1                 # Human-readable Windows setup helper
+|-- start_dev.ps1                     # Start the local development session services
+|-- stop_dev.ps1                      # Stop services started by start_dev.ps1
 |-- requirements.txt                  # Python dependencies
 |-- config.example.json               # Template for local config.json
 |-- channel_profile.json              # Public channel positioning and setup config
@@ -135,6 +137,60 @@ Useful setup script options:
 .\setup_windows.ps1 -SkipPiperDownload
 .\setup_windows.ps1 -SkipOllamaPull
 .\setup_windows.ps1 -OllamaModel "llama3.1:8b" -PiperVoice "en_US-lessac-medium"
+```
+
+## Daily Development Session
+
+Use `setup_windows.ps1` for installation and first-time bootstrap. For normal
+development sessions, use the lighter start/stop scripts instead:
+
+```powershell
+.\start_dev.ps1
+```
+
+If PowerShell blocks local scripts, either use the same process-scoped policy
+shown in the setup section, or run the script through PowerShell with bypass:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_dev.ps1
+```
+
+Use the same pattern with `stop_dev.ps1` when shutting services down.
+
+What it does:
+
+- Loads local `.env` values for the script process.
+- Checks that `.venv`, `.env`, and `config.json` exist.
+- Delegates missing baseline setup to `setup_windows.ps1` instead of
+  duplicating install logic.
+- Starts `ollama serve` when the Ollama API is not already running.
+- Pulls the configured `OLLAMA_MODEL` when it is missing, unless
+  `-SkipModelPull` is used.
+- Writes runtime state to `.dev/services.json`, which is ignored by git.
+- Runs a quick Python syntax check unless `-SkipChecks` is used.
+
+Useful options:
+
+```powershell
+.\start_dev.ps1 -SkipModelPull
+.\start_dev.ps1 -SkipBootstrap
+.\start_dev.ps1 -SkipChecks
+.\start_dev.ps1 -OllamaModel "llama3.1:8b"
+.\start_dev.ps1 -DryRun
+```
+
+Stop services that were started by the development script:
+
+```powershell
+.\stop_dev.ps1
+```
+
+By default, `stop_dev.ps1` only stops an Ollama process that was started and
+tracked by `start_dev.ps1`. If you explicitly want to stop every local Ollama
+process, use:
+
+```powershell
+.\stop_dev.ps1 -ForceAllOllama
 ```
 
 ## Configure `.env`
