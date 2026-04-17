@@ -441,7 +441,14 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
   (`Improve development environment scripts and handle Ollama issues`): labels,
   `v0.1 Repository Governance` milestone, assignee `HernadiB`, and a comment
   documenting that GitHub cannot request a review from the PR author.
-- GitHub Pages and branch protection are documented but blocked while this
-  private repository plan does not support those features. Project v2 is blocked
-  by missing token scopes (`project`/`read:project`/org-related scopes).
+- Follow-up GitHub hardening: ran a quick public-readiness scan, made the repo
+  public, enabled Pages workflow deployments, set homepage/topics, enabled
+  Dependabot/security alert features where GitHub allowed them, and created a
+  `Protect development and master` repository ruleset after classic branch
+  protection failed on user-owned repo restrictions validation.
+- Added release/package handling on the governance PR branch: package workflow,
+  release workflow, CodeQL workflow, `docs/release-package.md`, and a shorter
+  README split into focused docs under `docs/`.
+- Project v2 remains blocked by missing token scopes
+  (`project`/`read:project`/org-related scopes).
 - Unresolved questions: none.

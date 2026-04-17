@@ -49,6 +49,7 @@ Type labels:
 - `type: feature`
 - `type: task`
 - `type: docs`
+- `type: release`
 
 Status labels:
 
@@ -72,6 +73,7 @@ Area labels:
 - `area: upload`
 - `area: documentation`
 - `area: github-actions`
+- `area: release`
 
 Dependency labels:
 
@@ -87,29 +89,37 @@ Dependency labels:
 - `v1.0 Stable Shorts Pipeline`: stable private-first generation and upload
   workflow for reviewed finance Shorts.
 
-## Desired Branch Protection
+## Branch Protection
 
-The intended protection for `development` and `master` is:
+Protection for `development` and `master` is managed with a repository ruleset:
+
+```text
+Protect development and master
+```
+
+Rules:
 
 - Require pull request before merging.
 - Require at least one approving review.
 - Dismiss stale approvals after new commits.
 - Require code owner review.
 - Require status checks to pass.
-- Require the static analysis check.
+- Require the static analysis check now.
+- Add package and CodeQL checks to the required list after those workflows are
+  merged to the protected branches.
 - Require conversation resolution.
-- Enforce for admins.
 - Disallow force pushes.
 - Disallow branch deletion.
 - Prefer linear history.
 
-Current blocker:
+Implementation notes:
 
-- GitHub returned `Upgrade to GitHub Pro or make this repository public to
-  enable this feature.` for protected branches on this private repository.
-
-Do not make the repository public only to enable branch protection unless the
-local credential and generated-media risks have been reviewed.
+- The repository was made public on 2026-04-17 after a quick tracked-file and
+  history-name scan did not find committed local secret files such as `.env`,
+  `config.json`, OAuth token files, or generated media.
+- The classic branch protection endpoint was not usable for this user-owned
+  repository because of `restrictions` payload validation. A repository ruleset
+  was created instead.
 
 ## GitHub Pages
 
@@ -118,13 +128,13 @@ The repository contains a workflow-based Pages setup:
 - `.github/workflows/pages.yml`
 - `docs/index.html`
 
-Current blocker:
+Current state:
 
-- GitHub returned `Your current plan does not support GitHub Pages for this
-  repository.` for this private repository.
-
-When the plan supports private Pages, or when the repository is intentionally
-made public, enable Pages with workflow deployments.
+- GitHub Pages is enabled with workflow deployments.
+- URL: `https://hernadib.github.io/YT_Shorts_Generator/`
+- HTTPS is enforced.
+- The Pages workflow will publish after the workflow is merged to
+  `development`.
 
 ## GitHub Projects
 
@@ -145,6 +155,23 @@ Current blocker:
 - Project v2 commands require additional token scopes such as `project`,
   `read:project`, `read:org`, and `read:discussion`.
 
+## Release And Package Rules
+
+- Use semantic versions with a leading `v`.
+- Build packages through `.github/workflows/package.yml`.
+- Publish releases through `.github/workflows/release.yml`.
+- Attach ZIP, TAR.GZ, and SHA256 checksum assets to each GitHub Release.
+- Keep generated media, local assets, OAuth files, tokens, `.env`, and
+  `config.json` out of release packages.
+- Treat source release archives as the package format until the project has a
+  stable installable CLI or Python module layout.
+
+Details are stored in:
+
+```text
+docs/release-package.md
+```
+
 ## Applied Setup Log
 
 Completed:
@@ -153,16 +180,23 @@ Completed:
 - Used the existing Git Credential Manager token without printing it.
 - Confirmed authenticated user is `HernadiB`.
 - Confirmed repository permission is `ADMIN`.
+- Ran a quick public-readiness scan for committed local secret file names and
+  tracked secret-like patterns.
+- Made the repository public so GitHub Pages and branch/ruleset protection can
+  be enabled without a paid private-repo plan.
 - Created branch `chore/github-governance-pages`.
 - Added CODEOWNERS, PR template, issue templates, Dependabot, Pages workflow,
   contributing guide, security policy, and static Pages site.
+- Added release/package governance with package, release, and CodeQL workflows.
 - Pushed `chore/github-governance-pages`.
 - Created PR #3: `Add GitHub governance and Pages setup`.
 - Assigned PR #3 to `HernadiB`.
 - Applied labels to PR #3:
   - `type: task`
+  - `type: release`
   - `area: documentation`
   - `area: github-actions`
+  - `area: release`
   - `status: ready for review`
 - Assigned PR #3 to milestone `v0.1 Repository Governance`.
 - Created or updated the standard label set.
@@ -170,12 +204,19 @@ Completed:
   and `v1.0 Stable Shorts Pipeline`.
 - Patched repository settings for issues, projects, merge strategy, auto-merge,
   update branch, and delete branch on merge where GitHub allowed it.
+- Enabled GitHub Pages with workflow deployments.
+- Set repository homepage and topics.
+- Enabled Dependabot vulnerability alerts, automated security fixes, secret
+  scanning, secret scanning push protection, and Dependabot security updates
+  where GitHub allowed it.
+- Created the `Protect development and master` repository ruleset.
 - Created initial issue backlog:
   - #4 `Harden development environment startup and shutdown`
   - #5 `Document private-first upload review checklist`
   - #6 `Add quality-gate regression fixtures`
   - #7 `Add caption and render smoke tests`
   - #8 `Define v1.0 release checklist for stable Shorts pipeline`
+  - #15 `Prepare v0.1.0 prerelease`
 - Applied governance metadata to PR #2:
   - Labels: `type: task`, `area: setup`, `area: github-actions`,
     `status: ready for review`, `priority: p1`
@@ -185,10 +226,11 @@ Completed:
 
 Blocked or partial:
 
-- GitHub Pages could not be enabled because the private repository plan does
-  not support Pages.
-- Branch protection could not be enabled because the private repository plan
-  does not support protected branches.
+- GitHub Pages initially could not be enabled because the private repository
+  plan did not support Pages. This was resolved by making the repository public.
+- Classic branch protection could not be enabled through the branch protection
+  endpoint because of user-owned repository restrictions validation. This was
+  handled with a repository ruleset instead.
 - Project v2 could not be created because the current token lacks required
   project/org scopes.
 - `HernadiB` could not be requested as reviewer on PRs authored by `HernadiB`
