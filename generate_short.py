@@ -127,6 +127,8 @@ CURRENT_DATA_FINANCE_PATTERNS = [
     r"\btriple\s+the\s+average\b",
 ]
 PLACEHOLDER_PATTERN = r"\b(?:todo|placeholder|insert here|n/a|tbd)\b"
+SPOKEN_FINANCE_ACRONYM_PATTERN = r"\b(?:ETF|ETFs|APR|CPI|IRA|IRAs|ROI|FDIC)\b"
+APR_PATTERN = r"(?:apr|a\s+p\s+r)"
 TEXT_ARTIFACT_REPLACEMENTS = {
     "â€“": "-",
     "â€”": "-",
@@ -952,7 +954,7 @@ def format_money_value(value):
 def loan_math_issues(script: str):
     text = clean_text_artifacts(script).casefold()
     if not re.search(
-        r"\b(?:loan|debt|principal|apr|interest rate|monthly payment)\b",
+        rf"\b(?:loan|debt|principal|{APR_PATTERN}|interest rate|monthly payment)\b",
         text,
     ):
         return []
@@ -964,10 +966,10 @@ def loan_math_issues(script: str):
     ])
     apr = extract_first_number(text, [
         rf"\bannual\s+percentage\s+rate\b[^.!?]{{0,90}}\b{number_group('amount')}\s+percent\b",
-        rf"\bapr\s+of\s+{number_group('amount')}\s+percent\b",
-        rf"\b{number_group('amount')}\s+percent\s+apr\b",
+        rf"\b{APR_PATTERN}\s+of\s+{number_group('amount')}\s+percent\b",
+        rf"\b{number_group('amount')}\s+percent\s+{APR_PATTERN}\b",
         rf"\binterest\s+rate\s+of\s+{number_group('amount')}\s+percent\b",
-        rf"\bat\s+{number_group('amount')}\s+percent\s+(?:apr|interest)\b",
+        rf"\bat\s+{number_group('amount')}\s+percent\s+(?:{APR_PATTERN}|interest)\b",
         rf"\b{number_group('amount')}\s+percent\s+interest\b",
     ])
     monthly_payment = extract_first_number(text, [
@@ -1177,6 +1179,9 @@ def heuristic_quality_issues(meta, settings):
 
     if re.search(r"[$€£%]|\b(?:USD|EUR|GBP)\b", script, flags=re.IGNORECASE):
         issues.append("Spoken script still contains numeric finance symbols.")
+
+    if re.search(SPOKEN_FINANCE_ACRONYM_PATTERN, script, flags=re.IGNORECASE):
+        issues.append("Spoken script contains unspaced finance acronyms.")
 
     if re.search(
         rf"\b(?:dollars?|euros?|pounds?)\s+(?:{AMOUNT_WORD_PATTERN})\b",
