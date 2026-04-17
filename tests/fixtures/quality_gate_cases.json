@@ -1,0 +1,65 @@
+[
+  {
+    "name": "clean_short_script",
+    "title": "Why cash still needs a job",
+    "description": "A beginner explanation of cash, inflation, and liquidity.",
+    "script": "Cash feels safe, but inflation changes what safe means. An emergency fund protects timing, not spending power forever. Keep near term bills in cash, then give longer term money a job. That split keeps liquidity without pretending idle cash is free. Follow for more practical money tips.",
+    "expected_issue": null
+  },
+  {
+    "name": "repeated_word_blocks_grammar_regression",
+    "title": "Why idle cash quietly shrinks",
+    "description": "A beginner explanation of inflation and cash savings.",
+    "script": "Cash feels safe, but inflation changes what safe means. The the mistake is treating every dollar the same. Keep near term bills in cash, then give longer term money a job. That split keeps liquidity without pretending idle cash is free. Follow for more practical money tips.",
+    "expected_issue": "Script contains an accidental repeated word."
+  },
+  {
+    "name": "risky_finance_claim_blocks",
+    "title": "Risk and return are not optional",
+    "description": "A beginner explanation of why guarantees are dangerous.",
+    "script": "A product promising guaranteed returns should make you slow down. Real investments trade reward against risk, timing, or insurance cost. When a promise sounds effortless, read what risk moved somewhere else. Clear terms matter more than a perfect headline. Follow for more practical money tips.",
+    "expected_issue": "Script or metadata contains a risky finance claim."
+  },
+  {
+    "name": "current_market_data_claim_blocks",
+    "title": "Savings rates change over time",
+    "description": "A beginner explanation of savings rate comparisons.",
+    "script": "The current savings rate can make cash look better than usual. That sentence needs fresh market data, because rates change with time. A safer lesson is to compare liquidity needs with longer term goals. Use stable principles before quoting moving numbers. Follow for more practical money tips.",
+    "expected_issue": "Script or metadata contains a finance claim that needs current market data."
+  },
+  {
+    "name": "placeholder_blocks",
+    "title": "TBD emergency fund lesson",
+    "description": "A beginner explanation of emergency funds.",
+    "script": "An emergency fund buys time when a bill arrives early. It is not meant to beat inflation or replace investing. The goal is avoiding bad borrowing at the worst moment. Liquidity has a job, even when it looks boring. Follow for more practical money tips.",
+    "expected_issue": "Metadata or script contains placeholder text."
+  },
+  {
+    "name": "tts_symbol_notation_blocks",
+    "title": "Symbols make narration brittle",
+    "description": "A beginner explanation of spoken finance notation.",
+    "script": "A $1,000 emergency fund can stop a small bill from becoming debt. A 4% fee can also change the real cost of a choice. Spoken scripts need words, not symbols, so the voice stays natural. Clear narration makes the math easier to follow. Follow for more practical money tips.",
+    "expected_issue": "Spoken script still contains numeric finance symbols."
+  },
+  {
+    "name": "unspaced_finance_acronym_blocks",
+    "title": "ETF wording should be spoken",
+    "description": "A beginner explanation of funds.",
+    "script": "An ETF can spread one purchase across many companies. In narration, that acronym should be written as spaced letters. Otherwise the voice can read it awkwardly or inconsistently. The script should sound like a person explaining a term. Follow for more practical money tips.",
+    "expected_issue": "Spoken script contains unspaced finance acronyms."
+  },
+  {
+    "name": "loan_missing_term_blocks",
+    "title": "Monthly payments need time context",
+    "description": "A beginner explanation of loan payment framing.",
+    "script": "A loan of ten thousand dollars at twelve percent A P R with a monthly payment of one hundred dollars hides the real cost. Without the term, the claim is incomplete. Payment size only makes sense across time. The missing schedule changes the decision. Follow for more practical money tips.",
+    "expected_issue": "Loan math incomplete:"
+  },
+  {
+    "name": "loan_inconsistent_payment_blocks",
+    "title": "Low payments can break the math",
+    "description": "A beginner explanation of loan payment framing.",
+    "script": "A loan of ten thousand dollars at twelve percent A P R over five years with a monthly payment of one hundred dollars cannot be right. Those payments add up to only six thousand dollars. The principal alone is larger than that. The schedule reveals the bad claim. Follow for more practical money tips.",
+    "expected_issue": "Loan math inconsistent:"
+  }
+]
