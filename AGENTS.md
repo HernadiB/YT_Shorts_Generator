@@ -449,6 +449,11 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Added release/package handling on the governance PR branch: package workflow,
   release workflow, CodeQL workflow, `docs/release-package.md`, and a shorter
   README split into focused docs under `docs/`.
+- PR #3 was merged before the release/docs follow-up was complete, so the
+  release/docs commit was moved onto a fresh branch
+  `chore/release-packaging-docs` from latest `origin/development`; PR #16 was
+  opened, labeled, assigned to `HernadiB`, and attached to
+  `v0.1 Repository Governance`.
 - Project v2 remains blocked by missing token scopes
   (`project`/`read:project`/org-related scopes).
 - Unresolved questions: none.

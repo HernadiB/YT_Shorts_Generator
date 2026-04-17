@@ -190,6 +190,7 @@ Completed:
 - Added release/package governance with package, release, and CodeQL workflows.
 - Pushed `chore/github-governance-pages`.
 - Created PR #3: `Add GitHub governance and Pages setup`.
+- PR #3 was merged to `development`.
 - Assigned PR #3 to `HernadiB`.
 - Applied labels to PR #3:
   - `type: task`
@@ -223,6 +224,18 @@ Completed:
   - Milestone: `v0.1 Repository Governance`
   - Assignee: `HernadiB`
   - Added a PR comment explaining the reviewer-author limitation.
+- Created PR #16: `Add release packaging and split documentation`.
+- Assigned PR #16 to `HernadiB`.
+- Applied labels to PR #16:
+  - `type: task`
+  - `type: release`
+  - `area: release`
+  - `area: documentation`
+  - `area: github-actions`
+  - `status: ready for review`
+- Assigned PR #16 to milestone `v0.1 Repository Governance`.
+- Deleted stale remote branch `chore/github-governance-pages` after PR #3 was
+  merged; release/docs work now lives on `chore/release-packaging-docs`.
 
 Blocked or partial:
 
