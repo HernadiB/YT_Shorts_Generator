@@ -491,4 +491,14 @@ bandit -q -r . --severity-level medium --confidence-level high -x ./.git,./.venv
 - Updated the repository ruleset required checks to include
   `Python syntax and static checks`, `Build source package`, and
   `CodeQL analysis`.
+- User requested `master` as the GitHub default branch. The repository default
+  branch was changed from `development` to `master`, and local `origin/HEAD` was
+  refreshed to `master`.
+- Local MCP discovery returned no configured resources or templates. For GitHub
+  cloud-agent work, use built-in GitHub/Copilot MCP capability first and add
+  third-party MCP servers only when a concrete project task needs one.
+- Added ignored local auth inventory guidance. Actual GitHub token values should
+  not be duplicated from Git Credential Manager into tracked files; use
+  `.dev/auth.local.md` for auth-source notes and ignored `.dev/*.local.env` or
+  `.secrets/` files only when explicitly needed.
 - Unresolved questions: none.
